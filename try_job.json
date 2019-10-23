@@ -1,0 +1,76 @@
+{
+  "report_receivers": {
+    "admin": [
+      "lin.sun@intel.com"
+    ],
+    "webgl": [
+      "lin.sun@intel.com",
+      "yang.gu@intel.com"
+    ],
+    "angle": [
+      "lin.sun@intel.com",
+      "yang.gu@intel.com"
+    ],
+    "fyi": [
+      "lin.sun@intel.com"
+    ],
+    "aquarium": [
+      "lin.sun@intel.com",
+      "yang.gu@intel.com",
+      "yizhou.jiang@intel.com",
+      "jiawei.shao@intel.com"
+    ]
+  },
+  "win_jobs": [
+    "webgl_conformance_tests",
+    "webgl2_conformance_tests",
+    "webgl_conformance_gl_passthrough_tests",
+    "webgl2_conformance_gl_passthrough_tests",
+    "webgl_conformance_vulkan_passthrough_tests",
+    "webgl_conformance_d3d9_passthrough_tests",
+    "webgl2_conformance_d3d11_validating_tests",
+    "angle_end2end_tests",
+    "angle_perftests",
+    "aquarium_d3d12_tests",
+    "aquarium_dawn_d3d12_tests",
+    "aquarium_dawn_vulkan_tests"
+  ],
+  "linux_jobs": [
+    "webgl_conformance_tests",
+    "webgl2_conformance_tests",
+    "webgl_conformance_gl_passthrough_tests",
+    "webgl2_conformance_gl_passthrough_tests",
+    "webgl_conformance_vulkan_passthrough_tests",
+    "webgl_conformance_desktop_tests",
+    "webgl2_conformance_desktop_tests",
+    "angle_end2end_tests",
+    "angle_perftests",
+    "aquarium_dawn_vulkan_tests"
+  ],
+  "mac_jobs": [
+    "webgl_conformance_tests",
+    "webgl2_conformance_tests"
+  ],
+  "try_job_args": {
+    "webgl_conformance_tests"                   : ["webgl", ""],
+    "webgl_conformance_gl_passthrough_tests"    : ["webgl", "gl"],
+    "webgl_conformance_d3d9_passthrough_tests"  : ["webgl", "d3d9"],
+    "webgl_conformance_vulkan_passthrough_tests": ["webgl", "vulkan"],
+    "webgl_conformance_desktop_tests"           : ["webgl", "desktop"],
+    "webgl2_conformance_tests"                  : ["webgl2", ""],
+    "webgl2_conformance_gl_passthrough_tests"   : ["webgl2", "gl"],
+    "webgl2_conformance_d3d11_validating_tests" : ["webgl2", "d3d11v"],
+    "webgl2_conformance_desktop_tests"          : ["webgl2", "desktop"],
+    "angle_end2end_tests"                       : ["angle", "end2end"],
+    "angle_perftests"                           : ["angle", "perf"],
+    "pixel_skia_gold_test"                      : ["fyi", "pixel"],
+    "aquarium_d3d12_tests"                      : ["aquarium", "d3d12"],
+    "aquarium_dawn_d3d12_tests"                 : ["aquarium", "dawn_d3d12"],
+    "aquarium_dawn_vulkan_tests"                : ["aquarium", "dawn_vulkan"]
+  },
+  "try_job_shards": {
+    "webgl" : 2,
+    "webgl2": 20,
+    "angle_end2end" : 4
+  }
+}
