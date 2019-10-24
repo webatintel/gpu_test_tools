@@ -7,6 +7,8 @@ from gpu_test_util import *
 from os import path
 
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
+AQUARIUM_HISTORY_FILE = 'aquarium_history.json'
+PATTERN_AQUARIUM_RESULT = r'^aquarium_(.+)_test\s+(\d+)$'
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -62,7 +64,21 @@ def notify_command_error(receivers, error):
 
 def generate_report_title(target, report):
   if target == 'aquarium':
-    return '%s Test Report - %s / %s' % (target.title(), get_osname().title(), get_hostname())
+    max_bias = 0
+    previous_data = read_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE))
+    if previous_data:
+      for line in report.splitlines():
+        match = re_match(PATTERN_AQUARIUM_RESULT, line)
+        if match and previous_data.has_key(match.group(1)):
+          bias = int(match.group(2)) - previous_data[match.group(1)]
+          if abs(bias) > abs(max_bias):
+            max_bias = bias
+
+    if max_bias:
+      header = ' [Max Bias:%d]' % max_bias
+    else:
+      header = ' No Bias'
+    return '%s Test Report - %s / %s -%s' % (target.title(), get_osname().title(), get_hostname(), header)
   else:
     if target == 'webgl':
       target = 'WebGL'
@@ -173,6 +189,15 @@ def main():
     try:
       report = execute_command(['parse_result', target], print_log=False, return_log=True)
       if report:
+        if target == 'aquarium':
+          data = {}
+          for line in report.splitlines():
+            match = re_match(PATTERN_AQUARIUM_RESULT, line)
+            if match:
+              data[match.group(1)] = int(match.group(2))
+          if data:
+            write_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE), data)
+
         header = 'Location: %s\n' % os.getcwd()
         revision = args.aquarium_revision if target == 'aquarium' else args.chrome_revision
         if revision:
