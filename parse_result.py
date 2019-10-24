@@ -58,6 +58,7 @@ class TestSuite(object):
     self.name = name
     self.actual_passed = []
     self.actual_failed = []
+    self.flaky_passed = []
     self.unexpected_passed = []
     self.unexpected_failed = []
     self.skipped = []
@@ -70,6 +71,8 @@ class TestSuite(object):
       self.actual_passed.append(result)
       if not result.is_expected:
         self.unexpected_passed.append(result)
+      elif result.retry:
+        self.flaky_passed.append(result)
     else:
       self.actual_failed.append(result)
       if not result.is_expected:
@@ -201,6 +204,7 @@ def merge_shard_result(test_suites):
     merged_result.setdefault(name, TestSuite(name))
     merged_result[name].actual_passed.extend(test_suite.actual_passed)
     merged_result[name].actual_failed.extend(test_suite.actual_failed)
+    merged_result[name].flaky_passed.extend(test_suite.flaky_passed)
     merged_result[name].unexpected_passed.extend(test_suite.unexpected_passed)
     merged_result[name].unexpected_failed.extend(test_suite.unexpected_failed)
     merged_result[name].skipped.extend(test_suite.skipped)
@@ -222,6 +226,7 @@ def generate_test_report(test_suites, detailed_cases):
       report += '{:<14}'.format('[Pass:%d]' % len(test_suite.actual_passed))
       report += '{:<11}'.format('[Fail:%d]' % len(test_suite.actual_failed))
       report += '{:<11}'.format('[Skip:%d]' % len(test_suite.skipped))
+      report += '{:<17}'.format('[Flaky Pass:%d]' % len(test_suite.flaky_passed))
       report += '{:<15}'.format('[New Pass:%d]' % len(test_suite.unexpected_passed))
       report += '[New Fail:%d]\n' % len(test_suite.unexpected_failed)
 
@@ -247,6 +252,12 @@ def dump_telemetry_result(args):
   test_suites = merge_shard_result(test_suites)
   detailed_cases = {}
   for test_suite in test_suites:
+    if test_suite.flaky_passed:
+      detailed_cases.setdefault('Flaky Pass', [])
+      for test_result in test_suite.flaky_passed:
+        result = '%s    %s' % (test_result.test_suite.name, test_result.name)
+        detailed_cases['Flaky Pass'].append(result)
+
     if test_suite.unexpected_passed:
       detailed_cases.setdefault('New Pass', [])
       for test_result in test_suite.unexpected_passed:

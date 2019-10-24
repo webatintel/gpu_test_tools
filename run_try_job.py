@@ -80,14 +80,13 @@ def generate_report_title(target, report):
       header = ' No Bias'
     return '%s Test Report - %s / %s -%s' % (target.title(), get_osname().title(), get_hostname(), header)
   else:
-    if target == 'webgl':
-      target = 'WebGL'
-    elif target == 'angle':
-      target = 'ANGLE'
-
+    flaky_pass = 0
     new_pass = 0
     new_fail = 0
     for line in report.splitlines():
+      match = re_match(r'^.*\[Falky Pass:(\d+)\].*$', line)
+      if match:
+        flaky_pass += int(match.group(1))
       match = re_match(r'^.*\[New Pass:(\d+)\].*$', line)
       if match:
         new_pass += int(match.group(1))
@@ -98,10 +97,17 @@ def generate_report_title(target, report):
     header = ''
     if new_fail:
       header += ' [New Fail:%d]' % new_fail
-    if new_pass:
+    if new_pass and target == 'webgl':
       header += ' [New Pass:%d]' % new_pass
+    if flaky_pass and target == 'webgl':
+      header += ' [Flaky Pass:%d]' % flaky_pass
     if not header:
       header = ' All Clear'
+
+    if target == 'webgl':
+      target = 'WebGL'
+    elif target == 'angle':
+      target = 'ANGLE'
     return '%s Test Report - %s / %s -%s' % (target, get_osname().title(), get_hostname(), header)
 
 
