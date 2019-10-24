@@ -60,6 +60,34 @@ def notify_command_error(receivers, error):
              '%s failed on %s' % (error.cmd[0], get_hostname()),
              '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
+def generate_report_title(target, report):
+  if target == 'aquarium':
+    return '%s Test Report - %s / %s' % (target.title(), get_osname().title(), get_hostname())
+  else:
+    if target == 'webgl':
+      target = 'WebGL'
+    elif target == 'angle':
+      target = 'ANGLE'
+
+    new_pass = 0
+    new_fail = 0
+    for line in report.splitlines():
+      match = re_match(r'^.*\[New Pass:(\d+)\].*$', line)
+      if match:
+        new_pass += int(match.group(1))
+      match = re_match(r'^.*\[New Fail:(\d+)\].*$', line)
+      if match:
+        new_fail += int(match.group(1))
+
+    header = ''
+    if new_fail:
+      header += ' [New Fail:%d]' % new_fail
+    if new_pass:
+      header += ' [New Pass:%d]' % new_pass
+    if not header:
+      header = ' All Clear'
+    return '%s Test Report - %s / %s -%s' % (target, get_osname().title(), get_hostname(), header)
+
 
 def main():
   args = parse_arguments()
@@ -156,7 +184,7 @@ def main():
         write_file('%s_test_report.txt' % target, report)
         if args.email:
           send_email(args.report_receivers[target],
-                     '%s test report - %s / %s' % (target, get_osname(), get_hostname()),
+                     generate_report_title(target, report),
                      report)
     except CalledProcessError as e:
       notify_command_error(args.report_receivers['admin'], e)
