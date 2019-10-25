@@ -98,6 +98,15 @@ def copy(src, dest):
       dest = path.join(dest, path.basename(src))
     shutil.copytree(src, dest)
 
+def remove(src):
+  if path.isfile(src):
+    os.remove(src)
+  elif path.isdir(src):
+    shutil.rmtree(src)
+
+def move(src, dest):
+  shutil.move(src, dest)
+
 def unzip(src_file, dest_dir, remove_src=False):
   with zipfile.ZipFile(src_file, 'r') as zip_file:
     zip_file.extractall(dest_dir)

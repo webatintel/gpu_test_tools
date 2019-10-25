@@ -25,8 +25,6 @@ def parse_arguments():
       help='Aquarium source directory.\n\n')
   parser.add_argument('--sync', '-s', action='store_true',
       help='Fetch latest source code and rebuild before running tests.\n\n')
-  parser.add_argument('--pack', '-p', action='store_true',
-      help='Package the binaries to a standalone directory.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
   args = parser.parse_args()
@@ -134,49 +132,30 @@ def update_test_report(args, target, report):
 def main():
   args = parse_arguments()
 
-  # Update and package Chrome
+  # Update Chrome
   if args.chrome_dir:
     if args.sync:
       try:
-        execute_command(['build_chrome', 'sync', 'gen', 'build', 'pack', '--build', args.build, '--dir', args.chrome_dir],
+        execute_command(['build_chrome', 'sync', 'build', '--build', args.build, '--dir', args.chrome_dir],
                         return_log=True)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['admin'], e)
+        raise e
 
     args.chrome_revision = execute_command(['build_chrome', 'rev', '--dir', args.chrome_dir],
                                            print_log=False, return_log=True)
 
-    if args.pack:
-      pack_dir = path.abspath('chrome')
-      assert not path.exists(pack_dir)
-      try:
-        execute_command(['build_chrome', 'pack', '--build', args.build, '--dir', args.chrome_dir, '--pack-dir', pack_dir],
-                        return_log=True)
-        args.chrome_dir = pack_dir
-      except CalledProcessError as e:
-        notify_command_error(args.report_receivers['admin'], e)
-
-  # Update and package Aquarium
+  # Update Aquarium
   if args.aquarium_dir:
     if args.sync:
       try:
-        execute_command(['build_aquarium', 'sync', 'gen', 'build', 'pack', '--build', args.build, '--dir', args.aquarium_dir],
+        execute_command(['build_aquarium', 'sync', 'build', '--build', args.build, '--dir', args.aquarium_dir],
                         return_log=True)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['aquarium'], e)
 
     args.aquarium_revision = execute_command(['build_aquarium', 'rev', '--dir', args.aquarium_dir],
                                              print_log=False, return_log=True)
-
-    if args.pack:
-      pack_dir = path.abspath('aquarium')
-      assert not path.exists(pack_dir)
-      try:
-        execute_command(['build_aquarium', 'pack', '--build', args.build, '--dir', args.aquarium_dir, '--pack-dir', pack_dir],
-                        return_log=True)
-        args.aquarium_dir = pack_dir
-      except CalledProcessError as e:
-        notify_command_error(args.report_receivers['admin'], e)
 
   # Run tests
   target_set = set()

@@ -29,7 +29,6 @@ def main():
                      '--chrome-dir', os.path.join(project_dir, 'chromium'),
                      '--aquarium-dir', os.path.join(project_dir, 'aquarium'),
                      '--sync',
-                     '--pack',
                      '--email'],
                     test_dir)
 

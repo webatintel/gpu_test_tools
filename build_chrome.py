@@ -42,10 +42,9 @@ def parse_arguments():
       description='Chrome build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('commands', nargs='*',
-      choices=['sync', 'gen', 'build', 'pack', 'rev'], default='build',
+      choices=['sync', 'build', 'pack', 'rev'], default='build',
       help='Specify the command. Default is \'build\'.\n\n'\
            'sync   :  fetch latest source code\n'\
-           'gen    :  generate ninja files\n'\
            'build  :  build targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get Chrome revision\n\n')
@@ -84,7 +83,7 @@ def sync(args):
     raise e
 
 
-def generate(args):
+def build(args):
   build_args = ['enable_nacl=false', 'blink_symbol_level=0']
   if args.build == 'debug':
     build_args.extend(['is_debug=true'])
@@ -108,10 +107,6 @@ def generate(args):
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(build_args)],
                   dir=args.dir, env=env)
 
-
-def build(args):
-  env = get_env()
-  env.pop('PKG_CONFIG_PATH', None)
   build_cmd = ['autoninja', '-C', args.build_dir]
   for target in BUILD_TARGETS:
     cmd = build_cmd[:]
@@ -156,8 +151,6 @@ def main():
   for command in args.commands:
     if command == 'sync':
       sync(args)
-    elif command == 'gen':
-      generate(args)
     elif command == 'build':
       build(args)
     elif command == 'pack':

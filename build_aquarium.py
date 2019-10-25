@@ -38,10 +38,9 @@ def parse_arguments():
       description='Aquarium build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('commands', nargs='*',
-      choices=['sync', 'gen', 'build', 'pack', 'rev'], default='build',
+      choices=['sync', 'build', 'pack', 'rev'], default='build',
       help='Specify the command. Default is \'build\'.\n\n'\
            'sync   :  fetch latest source code\n'\
-           'gen    :  generate ninja files\n'\
            'build  :  build targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get the commit ID of Aquarium and Dawn\n\n')
@@ -89,23 +88,25 @@ def sync(args):
                   dir=args.dawn_dir)
 
 
-def generate(args):
+def build(args):
+  temp_build_dir = path.join('out', 'Temp')
+
   build_args = []
   if args.build == 'debug':
     build_args.extend(['is_debug=true'])
   else:
     build_args.extend(['is_debug=false'])
-
-  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(build_args)],
+  execute_command(['gn', 'gen', temp_build_dir, '--args=' + ' '.join(build_args)],
                   dir=args.dir)
 
-
-def build(args):
-  build_cmd = ['autoninja', '-C', args.build_dir]
+  build_cmd = ['autoninja', '-C', temp_build_dir]
   for target in BUILD_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir)
+
+  remove(path.join(args.dir, args.build_dir))
+  move(path.join(args.dir, temp_build_dir), path.join(args.dir, args.build_dir))
 
 
 def package(args):
@@ -142,8 +143,6 @@ def main():
   for command in args.commands:
     if command == 'sync':
       sync(args)
-    elif command == 'gen':
-      generate(args)
     elif command == 'build':
       build(args)
     elif command == 'pack':
