@@ -25,7 +25,7 @@ def main():
     test_dir = os.path.join(gpu_test_dir, current_time)
     os.makedirs(test_dir)
     execute_command(['run_try_job',
-                     '--build', 'default',
+                     '--type', 'default',
                      '--chrome-dir', os.path.join(project_dir, 'chromium'),
                      '--aquarium-dir', os.path.join(project_dir, 'aquarium'),
                      '--sync',

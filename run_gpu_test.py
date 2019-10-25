@@ -40,7 +40,7 @@ def parse_arguments():
            'angle    :  ANGLE tests\n'\
            'fyi      :  Miscellaneous less important tests\n'\
            'aquarium :  Aquarium tests\n\n')
-  parser.add_argument('--backend', '-e',
+  parser.add_argument('--backend', '-b',
       choices=['gl', 'vulkan', 'd3d9', 'd3d11', 'd3d9v', 'd3d11v', 'd3d12', 'desktop',
                'end2end', 'perf', 'pixel', 'dawn_d3d12', 'dawn_vulkan'],
       help='Specify the backend. Not all targets are supporting all backends.\n'\
@@ -62,9 +62,9 @@ def parse_arguments():
            'd3d12       : d3d12\n'\
            'dawn_d3d12  : dawn d3d12\n'\
            'dawn_vulkan : dawn vulkan\n\n')
-  parser.add_argument('--build', '-b',
+  parser.add_argument('--type', '-t',
       choices=['release', 'debug', 'default'], default='release',
-      help='Build type. Default is \'release\'.\n'\
+      help='Browser type. Default is \'release\'.\n'\
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--dir', '-d', default='.',
@@ -132,15 +132,14 @@ def parse_arguments():
   args.dir = path.abspath(args.dir)
   if path.basename(args.dir) == 'chromium':
     args.dir = path.join(args.dir, 'src')
-  args.build_dir = path.join('out', args.build.title())
+  args.build_dir = path.join('out', args.type.title())
   return args, extra_args
 
 
 def generate_webgl_arguments(args):
   # Common arguments
-  build = path.basename(args.build_dir).lower()
   common_args = ['--show-stdout',
-                 '--browser=' + build,
+                 '--browser=' + args.type,
                  '--passthrough', '-v',
                  '--retry-only-retry-on-failure-tests']
 
@@ -199,9 +198,8 @@ def generate_webgl_arguments(args):
 
 def generate_fyi_arguments(args):
   if args.backend == 'pixel':
-    build = path.basename(args.build_dir).lower()
     common_args = ['--show-stdout',
-                   '--browser=' + build,
+                   '--browser=' + args.type,
                    '--passthrough', '-v',
                    '--dont-restore-color-profile-after-test']
     browser_args = ['--js-flags=--expose-gc']

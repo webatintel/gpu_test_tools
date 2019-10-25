@@ -48,9 +48,9 @@ def parse_arguments():
            'build  :  build targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get Chrome revision\n\n')
-  parser.add_argument('--build', '-b',
+  parser.add_argument('--type', '-t',
       choices=['release', 'debug', 'default'], default='release',
-      help='Build type. Default is \'release\'.\n'\
+      help='Browser type. Default is \'release\'.\n'\
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--dir', '-d', default='.',
@@ -63,7 +63,7 @@ def parse_arguments():
     args.commands = [args.commands]
   args.dir = path.abspath(args.dir)
   args.pack_dir = path.abspath(args.pack_dir)
-  args.build_dir = path.join('out', args.build.title())
+  args.build_dir = path.join('out', args.type.title())
   assert not 'pack' in args.commands or args.dir != args.pack_dir
   return args
 
@@ -85,21 +85,21 @@ def sync(args):
 
 def build(args):
   build_args = ['enable_nacl=false', 'blink_symbol_level=0']
-  if args.build == 'debug':
+  if args.type == 'debug':
     build_args.extend(['is_debug=true'])
   else:
     build_args.extend(['is_debug=false', 'dcheck_always_on=true'])
 
-  if args.build == 'default':
+  if args.type == 'default':
     build_args.extend(['is_component_build=false'])
   else:
     build_args.extend(['is_component_build=true'])
 
-  if args.build == 'debug':
+  if args.type == 'debug':
     build_args.extend(['symbol_level=2'])
-  elif args.build == 'release':
+  elif args.type == 'release':
     build_args.extend(['symbol_level=1'])
-  elif args.build == 'default':
+  elif args.type == 'default':
     build_args.extend(['symbol_level=0'])
 
   env = get_env()

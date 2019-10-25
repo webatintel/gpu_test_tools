@@ -14,15 +14,17 @@ def parse_arguments():
       description='Run try jobs\n'\
                   'The test configuration is defined in try_job.json.\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--build', '-b',
+  parser.add_argument('--type', '-t',
       choices=['release', 'debug', 'default'], default='release',
-      help='Build type. Default is \'release\'.\n'\
+      help='Browser type. Default is \'release\'.\n'\
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--chrome-dir', '-c',
       help='Chrome source directory.\n\n')
   parser.add_argument('--aquarium-dir', '-a',
       help='Aquarium source directory.\n\n')
+  parser.add_argument('--build', '-b', action='store_true',
+      help='Rebuild before running tests.\n\n')
   parser.add_argument('--sync', '-s', action='store_true',
       help='Fetch latest source code and rebuild before running tests.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
@@ -134,23 +136,32 @@ def main():
 
   # Update Chrome
   if args.chrome_dir:
-    if args.sync:
+    if args.sync or args.build:
+      build_cmd = ['build_chrome']
+      if args.sync:
+        build_cmd.extend(['sync', 'build'])
+      elif args.build:
+        build_cmd.extend(['build'])
+      build_cmd.extend(['--type', args.type, '--dir', args.chrome_dir])
       try:
-        execute_command(['build_chrome', 'sync', 'build', '--build', args.build, '--dir', args.chrome_dir],
-                        return_log=True)
+        execute_command(build_cmd, return_log=True)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['admin'], e)
-        raise e
 
     args.chrome_revision = execute_command(['build_chrome', 'rev', '--dir', args.chrome_dir],
                                            print_log=False, return_log=True)
 
   # Update Aquarium
   if args.aquarium_dir:
-    if args.sync:
+    if args.sync or args.build:
+      build_cmd = ['build_aquarium']
+      if args.sync:
+        build_cmd.extend(['sync', 'build'])
+      elif args.build:
+        build_cmd.extend(['build'])
+      build_cmd.extend(['--type', args.type, '--dir', args.aquarium_dir])
       try:
-        execute_command(['build_aquarium', 'sync', 'build', '--build', args.build, '--dir', args.aquarium_dir],
-                        return_log=True)
+        execute_command(build_cmd, return_log=True)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['aquarium'], e)
 
@@ -168,7 +179,7 @@ def main():
         shard = args.try_job_shards[key]
         break
 
-    cmd = ['run_gpu_test', target, '--build', args.build]
+    cmd = ['run_gpu_test', target, '--type', args.type]
     if backend:
       cmd.extend(['--backend', backend])
     if shard > 1:

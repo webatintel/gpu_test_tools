@@ -44,9 +44,9 @@ def parse_arguments():
            'build  :  build targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get the commit ID of Aquarium and Dawn\n\n')
-  parser.add_argument('--build', '-b',
+  parser.add_argument('--type', '-t',
       choices=['release', 'debug', 'default'], default='release',
-      help='Build type. Default is \'release\'.\n'\
+      help='Browser type. Default is \'release\'.\n'\
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--dir', '-d', default='.',
@@ -60,7 +60,7 @@ def parse_arguments():
   args.dir = path.abspath(args.dir)
   args.dawn_dir = path.join(args.dir, 'third_party', 'dawn')
   args.pack_dir = path.abspath(args.pack_dir)
-  args.build_dir = path.join('out', args.build.title())
+  args.build_dir = path.join('out', args.type.title())
   assert not 'pack' in args.commands or args.dir != args.pack_dir
   return args
 
@@ -92,7 +92,7 @@ def build(args):
   temp_build_dir = path.join('out', 'Temp')
 
   build_args = []
-  if args.build == 'debug':
+  if args.type == 'debug':
     build_args.extend(['is_debug=true'])
   else:
     build_args.extend(['is_debug=false'])
