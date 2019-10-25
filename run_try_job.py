@@ -8,7 +8,6 @@ from os import path
 
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
 AQUARIUM_HISTORY_FILE = 'aquarium_history.json'
-PATTERN_AQUARIUM_RESULT = r'^aquarium_(.+)_test\s+(\d+)$'
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -62,53 +61,74 @@ def notify_command_error(receivers, error):
              '%s failed on %s' % (error.cmd[0], get_hostname()),
              '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
-def generate_report_title(target, report):
-  if target == 'aquarium':
-    max_bias = 0
-    previous_data = read_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE))
-    if previous_data:
-      for line in report.splitlines():
-        match = re_match(PATTERN_AQUARIUM_RESULT, line)
-        if match and previous_data.has_key(match.group(1)):
-          bias = int(match.group(2)) - previous_data[match.group(1)]
-          if abs(bias) > abs(max_bias):
-            max_bias = bias
 
-    if max_bias:
-      header = ' [Max Bias:%d]' % max_bias
-    else:
-      header = ' No Bias'
-    return '%s Test Report - %s / %s -%s' % (target.title(), get_osname().title(), get_hostname(), header)
+def update_aquarium_report(args, report):
+  current_data = {}
+  previous_data = read_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE))
+  max_bias = 0
+  lines = report.splitlines()
+  for i in range(0, len(lines)):
+    match = re_match(r'^aquarium_(.+)_test\s+(\d+)$', lines[i])
+    if match:
+      key = match.group(1)
+      value = int(match.group(2))
+      current_data[key] = value
+      if previous_data.has_key(key):
+        bias = value - previous_data[key]
+        if abs(bias) > abs(max_bias):
+          max_bias = bias
+        lines[i] = 'aquarium_%s_test    %d -> %d' % (key, previous_data[key], value)
+
+  if current_data:
+    write_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE), current_data)
+
+  if max_bias:
+    notice = ' [Max Bias:%d]' % max_bias
   else:
-    flaky_pass = 0
-    new_pass = 0
-    new_fail = 0
-    for line in report.splitlines():
-      match = re_match(r'^.*\[Falky Pass:(\d+)\].*$', line)
-      if match:
-        flaky_pass += int(match.group(1))
-      match = re_match(r'^.*\[New Pass:(\d+)\].*$', line)
-      if match:
-        new_pass += int(match.group(1))
-      match = re_match(r'^.*\[New Fail:(\d+)\].*$', line)
-      if match:
-        new_fail += int(match.group(1))
+    notice = ' No Bias'
+  title = 'Aquarium Test Report - %s / %s -%s' % (get_osname().title(), get_hostname(), notice)
 
-    header = ''
-    if new_fail:
-      header += ' [New Fail:%d]' % new_fail
-    if new_pass and target == 'webgl':
-      header += ' [New Pass:%d]' % new_pass
-    if flaky_pass and target == 'webgl':
-      header += ' [Flaky Pass:%d]' % flaky_pass
-    if not header:
-      header = ' All Clear'
+  header = 'Location: %s\n' % os.getcwd()
+  if args.aquarium_revision:
+    header += 'Revision: %s\n' % args.aquarium_revision
+  return title, header + '\n'.join(lines)
 
-    if target == 'webgl':
-      target = 'WebGL'
-    elif target == 'angle':
-      target = 'ANGLE'
-    return '%s Test Report - %s / %s -%s' % (target, get_osname().title(), get_hostname(), header)
+
+def update_test_report(args, target, report):
+  flaky_pass = 0
+  new_pass = 0
+  new_fail = 0
+  for line in report.splitlines():
+    match = re_match(r'^.*\[Falky Pass:(\d+)\].*$', line)
+    if match:
+      flaky_pass += int(match.group(1))
+    match = re_match(r'^.*\[New Pass:(\d+)\].*$', line)
+    if match:
+      new_pass += int(match.group(1))
+    match = re_match(r'^.*\[New Fail:(\d+)\].*$', line)
+    if match:
+      new_fail += int(match.group(1))
+
+  notice = ''
+  if new_fail:
+    notice += ' [New Fail:%d]' % new_fail
+  if new_pass and target == 'webgl':
+    notice += ' [New Pass:%d]' % new_pass
+  if flaky_pass and target == 'webgl':
+    notice += ' [Flaky Pass:%d]' % flaky_pass
+  if not notice:
+    notice = ' All Clear'
+
+  if target == 'webgl':
+    target = 'WebGL'
+  elif target == 'angle':
+    target = 'ANGLE'
+  title = '%s Test Report - %s / %s -%s' % (target, get_osname().title(), get_hostname(), notice)
+
+  header = 'Location: %s\n' % os.getcwd()
+  if args.chrome_revision:
+    header += 'Revision: %s\n' % args.chrome_revision
+  return title, header + report
 
 
 def main():
@@ -196,27 +216,13 @@ def main():
       report = execute_command(['parse_result', target], print_log=False, return_log=True)
       if report:
         if target == 'aquarium':
-          data = {}
-          for line in report.splitlines():
-            match = re_match(PATTERN_AQUARIUM_RESULT, line)
-            if match:
-              data[match.group(1)] = int(match.group(2))
-          if data:
-            write_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE), data)
-
-        header = 'Location: %s\n' % os.getcwd()
-        revision = args.aquarium_revision if target == 'aquarium' else args.chrome_revision
-        if revision:
-          header += 'Revision: %s\n' % revision
-        report = header + report
-
-        print('\n--------------------------------------------------\n')
-        print(report)
+          title, report = update_aquarium_report(args, report)
+        else:
+          title, report = update_test_report(args, target, report)
+        print('\n--------------------------------------------------\n' + report)
         write_file('%s_test_report.txt' % target, report)
         if args.email:
-          send_email(args.report_receivers[target],
-                     generate_report_title(target, report),
-                     report)
+          send_email(args.report_receivers[target], title, report)
     except CalledProcessError as e:
       notify_command_error(args.report_receivers['admin'], e)
 
