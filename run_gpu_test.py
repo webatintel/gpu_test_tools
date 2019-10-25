@@ -326,6 +326,8 @@ def main():
         new_cmd.append('%s=%d' % (shard_index, args.index))
         execute_shard(new_cmd, args)
 
+  if args.target == 'aquarium':
+    remove('imgui.ini')
 
 if __name__ == '__main__':
   sys.exit(main())

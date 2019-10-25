@@ -8,6 +8,7 @@ from os import path
 
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
 AQUARIUM_HISTORY_FILE = 'aquarium_history.json'
+MAX_AQUARIUM_HISTORY = 10
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -63,27 +64,31 @@ def notify_command_error(receivers, error):
 
 
 def update_aquarium_report(args, report):
-  current_data = {}
-  previous_data = read_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE))
+  history_file = path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE)
+  history_data = read_json(history_file)
   max_bias = 0
   lines = report.splitlines()
   for i in range(0, len(lines)):
     match = re_match(r'^aquarium_(.+)_test\s+(\d+)$', lines[i])
     if match:
-      key = match.group(1)
-      value = int(match.group(2))
-      current_data[key] = value
-      if previous_data.has_key(key):
-        bias = value - previous_data[key]
+      key, value = match.group(1), int(match.group(2))
+      if history_data.has_key(key):
+        baseline = sum(history_data[key]) / len(history_data[key])
+        bias = int(float(value - baseline) * 100 / baseline)
+        lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
         if abs(bias) > abs(max_bias):
           max_bias = bias
-        lines[i] = 'aquarium_%s_test    %d -> %d' % (key, previous_data[key], value)
+        history_data[key].append(value)
+        while len(history_data[key]) > MAX_AQUARIUM_HISTORY:
+          history_data[key].pop(0)
+      else:
+        history_data[key] = [value]
 
-  if current_data:
-    write_json(path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE), current_data)
+  if history_data:
+    write_json(history_file, history_data)
 
   if max_bias:
-    notice = ' [Max Bias:%d]' % max_bias
+    notice = ' [Max Bias:%s%d%%]' % ('+' if bias >= 0 else '', max_bias)
   else:
     notice = ' No Bias'
   title = 'Aquarium Test Report - %s / %s -%s' % (get_osname().title(), get_hostname(), notice)
@@ -209,7 +214,7 @@ def main():
           title, report = update_aquarium_report(args, report)
         else:
           title, report = update_test_report(args, target, report)
-        print('\n--------------------------------------------------\n' + report)
+        print('\n--------------------------------------------------\n%s\n\n%s' % (title, report))
         write_file('%s_test_report.txt' % target, report)
         if args.email:
           send_email(args.report_receivers[target], title, report)
