@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from gpu_test_util import *
+from util.gpu_test_util import *
 from os import path
 
 PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')

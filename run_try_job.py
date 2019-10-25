@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from gpu_test_util import *
+from util.gpu_test_util import *
 from os import path
 
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
