@@ -43,7 +43,8 @@ def parse_arguments():
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('commands', nargs='*',
       choices=['sync', 'build', 'pack', 'rev'], default='build',
-      help='Specify the command. Default is \'build\'.\n\n'\
+      help='Specify the command. Default is \'build\'.\n'\
+           'Can specify multiple commands at the same time.\n\n'\
            'sync   :  fetch latest source code\n'\
            'build  :  build targets\n'\
            'pack   :  package executables that can run independently\n'\

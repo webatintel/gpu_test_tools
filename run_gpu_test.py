@@ -25,12 +25,7 @@ WEBGL2_ABBREVIATED_RESULT = path.join('content', 'test', 'data', 'gpu',
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
-      description='GPU test tools\n'\
-                  'The most import arguments are target, backend, chrome-dir, build.\n'\
-                  'The following command runs WebGL2 conformance test with OpenGL\n'\
-                  'backend, the Chrome directory is \'chromium\' in current folder,\n'\
-                  'the build directory is \'out/Default\'.\n'\
-                  'run_gpu_test webgl2 -e gl -c ./chromium -b default\n\n',
+      description='GPU test tools\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('target',
       choices=['webgl', 'webgl2', 'angle', 'fyi', 'aquarium'],
