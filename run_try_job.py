@@ -30,6 +30,8 @@ def parse_arguments():
       help='Fetch latest source code and rebuild before running tests.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
+  parser.add_argument('--iris', action='store_true',
+      help='Enable Iris driver. (Only available on Ubuntu/Mesa environment)\n\n')
   args = parser.parse_args()
 
   if args.chrome_dir:
@@ -195,6 +197,8 @@ def main():
     else:
       assert args.chrome_dir
       cmd.extend(['--dir', args.chrome_dir])
+    if target.startswith('webgl') and args.iris:
+      cmd.append('--iris')
 
     try:
       execute_command(cmd, return_log=True)
