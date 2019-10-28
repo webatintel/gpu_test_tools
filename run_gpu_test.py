@@ -242,10 +242,11 @@ def generate_aquarium_arguments(args):
 
 def execute_shard(cmd, args):
   env = get_env()
-  env.pop('http_proxy', None)
-  env.pop('https_proxy', None)
-  env.pop('HTTP_PROXY', None)
-  env.pop('HTTPS_PROXY', None)
+  if is_win():
+    env.pop('http_proxy', None)
+    env.pop('https_proxy', None)
+    env.pop('HTTP_PROXY', None)
+    env.pop('HTTPS_PROXY', None)
   if args.iris:
     env['MESA_LOADER_DRIVER_OVERRIDE'] = 'iris'
 
