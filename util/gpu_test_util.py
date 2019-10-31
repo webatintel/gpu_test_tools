@@ -209,18 +209,18 @@ def execute_command(cmd,
             n = int(match.group(1)) * 100 / int(match.group(2))
             if n > progress_percent:
               progress_percent = n
-              line = '\r['
+              line = '['
               for i in range(0, progress_percent/2):
                 line += '='
               line += '>'
               for i in range(progress_percent/2, 50):
                 line += ' '
               line += '] %d%%' % progress_percent
-              sys.stdout.write(line)
+              sys.stdout.write('\r' + line)
+              sys.stdout.flush()
               if progress_percent == 100:
                 progress_percent = 0
-                sys.stdout.write('\n')
-              sys.stdout.flush()
+                print()
           continue
 
       # Output log

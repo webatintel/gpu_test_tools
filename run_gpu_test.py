@@ -36,27 +36,27 @@ def parse_arguments():
            'fyi      :  Miscellaneous less important tests\n'\
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--backend', '-b',
-      choices=['gl', 'vulkan', 'd3d9', 'd3d11', 'd3d9v', 'd3d11v', 'd3d12', 'desktop',
-               'end2end', 'perf', 'pixel', 'dawn_d3d12', 'dawn_vulkan'],
+      choices=['gl', 'vulkan', 'd3d9', 'desktop',
+               'end2end', 'perf',
+               'pixel',
+               'd3d12', 'dawn_d3d12', 'dawn_vulkan'],
       help='Specify the backend. Not all targets are supporting all backends.\n'\
            'Run default tests if the backend is not specified.\n'\
            '\n[WebGL/WebGL2]\n'\
-           'gl      : opengl passthrough\n'\
-           'vulkan  : vulkan passthrough\n'\
-           'd3d9    : d3d9   passthrough\n'\
-           'd3d11   : d3d11  passthrough\n'\
-           'd3d9v   : d3d9   validating\n'\
-           'd3d11v  : d3d11  validating\n'\
-           'desktop : use desktop GL\n'\
+           'conformance : standard conformance test (default)\n'\
+           'gl          : opengl passthrough\n'\
+           'vulkan      : vulkan passthrough\n'\
+           'd3d9        : d3d9   passthrough\n'\
+           'desktop     : default backend of desktop version\n'\
            '\n[ANGLE]\n'\
-           'end2end : end2end test\n'\
+           'end2end : end2end test (default)\n'\
            'perf    : performance test\n'\
            '\n[FYI]\n'\
            'pixel : pixel skia gold test\n'\
            '\n[Aquarium]\n'\
-           'd3d12       : d3d12\n'\
+           'dawn_vulkan : dawn vulkan (default)\n'\
            'dawn_d3d12  : dawn d3d12\n'\
-           'dawn_vulkan : dawn vulkan\n\n')
+           'd3d12       : d3d12\n\n')
   parser.add_argument('--type', '-t',
       choices=['release', 'debug', 'default'], default='release',
       help='Browser type. Default is \'release\'.\n'\
@@ -85,32 +85,29 @@ def parse_arguments():
   if args.target.startswith('webgl'):
     if not args.backend:
       args.backend = 'conformance'
-    elif (args.backend != 'conformance' and args.backend != 'gl'
-          and args.backend != 'vulkan' and not args.backend.startswith('d3d')
-          and args.backend != 'desktop'):
+    if (args.backend != 'conformance' and args.backend != 'desktop'
+        and args.backend != 'gl' and args.backend != 'vulkan' and args.backend != 'd3d9'):
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'angle':
     if not args.backend:
       args.backend = 'end2end'
-    elif args.backend != 'end2end' and args.backend != 'perf':
+    if args.backend != 'end2end' and args.backend != 'perf':
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'fyi':
     if not args.backend:
       args.backend = 'pixel'
-    elif args.backend != 'pixel':
+    if args.backend != 'pixel':
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'aquarium':
     if not args.backend:
       args.backend = 'dawn_vulkan'
-    elif not args.backend.startswith('dawn_') and args.backend != 'd3d12':
+    if not args.backend.startswith('dawn_') and args.backend != 'd3d12':
       raise Exception('Unsupported backend: ' + args.backend)
 
-  if args.shard > 1 and (not args.target.startswith('webgl')
-      and args.target != 'angle'):
+  if args.shard > 1 and (not args.target.startswith('webgl') and args.target != 'angle'):
     raise Exception('Do not support shard for ' + args.target)
 
-  if args.filter and (not args.target.startswith('webgl')
-      and args.target != 'angle' and args.target != 'fyi'):
+  if args.filter and (not args.target.startswith('webgl') and args.target != 'angle' and args.target != 'fyi'):
     raise Exception('Do not support filter for ' + args.target)
 
   if args.shard > 1 and args.filter:
@@ -140,10 +137,12 @@ def generate_webgl_arguments(args):
 
   # Browser arguments
   browser_args = ['--js-flags=--expose-gc',
-                  '--disable-backgrounding-occluded-windows',
-                  '--disable-renderer-backgrounding']
-  if args.backend == 'conformance':
+                  '--force_high_performance_gpu',
+                  '--disable-backgrounding-occluded-windows']
+  if args.backend == 'desktop':
     pass
+  elif args.backend == 'conformance':
+    browser_args.extend(['--use-cmd-decoder=validating'])
   elif args.backend == 'gl':
     browser_args.extend(['--use-gl=angle',
                          '--use-angle=gl',
@@ -154,18 +153,6 @@ def generate_webgl_arguments(args):
   elif args.backend == 'd3d9':
     browser_args.extend(['--use-angle=d3d9',
                          '--use-cmd-decoder=passthrough'])
-  elif args.backend == 'd3d11':
-    browser_args.extend(['--use-angle=d3d11',
-                         '--use-cmd-decoder=passthrough'])
-  elif args.backend == 'd3d9v':
-    browser_args.extend(['--use-gl=angle',
-                         '--use-angle=d3d9',
-                         '--use-cmd-decoder=validating'])
-  elif args.backend == 'd3d11v':
-    browser_args.extend(['--use-angle=d3d11',
-                         '--use-cmd-decoder=validating'])
-  elif args.backend == 'desktop':
-    browser_args.extend(['--use-gl=desktop'])
 
   # WebGL arguments
   webgl_args = []
@@ -225,9 +212,8 @@ def generate_angle_arguments(args):
 
 def generate_aquarium_arguments(args):
   total_args = ['--enable-msaa',
-                '--enable-full-screen-mode']
-  if args.backend.startswith('dawn'):
-    total_args.append('--turn-off-vsync')
+                '--enable-full-screen-mode',
+                '--turn-off-vsync']
   total_args.extend(['--backend', args.backend])
   total_args.extend(['--test-time', str(AQUARIUM_TEST_TIME)])
   total_args.extend(['--record-fps-frequency', str(AQUARIUM_FPS_FREQUENCY)])
