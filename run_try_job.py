@@ -90,7 +90,7 @@ def update_aquarium_report(args, report):
     write_json(history_file, history_data)
 
   if max_bias:
-    notice = ' [Max Bias:%s%d%%]' % ('+' if bias >= 0 else '', max_bias)
+    notice = ' [Max Bias:%s%d%%]' % ('+' if max_bias >= 0 else '', max_bias)
   else:
     notice = ' No Bias'
   title = 'Aquarium Test Report - %s / %s -%s' % (get_osname().title(), get_hostname(), notice)
