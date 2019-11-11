@@ -7,8 +7,6 @@ from util.gpu_test_util import *
 from os import path
 
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
-AQUARIUM_HISTORY_FILE = 'aquarium_history.json'
-MAX_AQUARIUM_HISTORY = 10
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -45,6 +43,7 @@ def parse_arguments():
   # Load configuration
   config = read_json(TRY_JOB_CONFIG)
   args.report_receivers = config['report_receivers']
+  args.aquarium_reference = config['aquarium_reference']
 
   if is_win():
     args.try_jobs = config['win_jobs']
@@ -66,28 +65,17 @@ def notify_command_error(receivers, error):
 
 
 def update_aquarium_report(args, report):
-  history_file = path.join(os.getcwd(), '..', AQUARIUM_HISTORY_FILE)
-  history_data = read_json(history_file)
   max_bias = 0
   lines = report.splitlines()
   for i in range(0, len(lines)):
     match = re_match(r'^aquarium_(.+)_test\s+(\d+)$', lines[i])
     if match:
       key, value = match.group(1), int(match.group(2))
-      if history_data.has_key(key):
-        baseline = sum(history_data[key]) / len(history_data[key])
-        bias = int(float(value - baseline) * 100 / baseline)
-        lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
-        if abs(bias) > abs(max_bias):
-          max_bias = bias
-        history_data[key].append(value)
-        while len(history_data[key]) > MAX_AQUARIUM_HISTORY:
-          history_data[key].pop(0)
-      else:
-        history_data[key] = [value]
-
-  if history_data:
-    write_json(history_file, history_data)
+      reference_value = args.aquarium_reference[get_osname()][key]
+      bias = int(float(value - reference_value) * 100 / reference_value)
+      lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
+      if abs(bias) > abs(max_bias):
+        max_bias = bias
 
   if max_bias:
     notice = ' [Max Bias:%s%d%%]' % ('+' if max_bias >= 0 else '', max_bias)

@@ -53,6 +53,16 @@
     "webgl_conformance_tests",
     "webgl2_conformance_tests"
   ],
+  "aquarium_reference": {
+    "win": {
+      "d3d12": 35,
+      "dawn_d3d12": 40,
+      "dawn_vulkan": 40
+    },
+    "linux": {
+      "dawn_vulkan": 40
+    }
+  },
   "try_job_args": {
     "webgl_conformance_tests"                   : ["webgl", ""],
     "webgl_conformance_desktop_tests"           : ["webgl", "desktop"],
