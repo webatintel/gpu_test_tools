@@ -90,24 +90,19 @@ def sync(args):
 
 
 def build(args):
-  temp_build_dir = path.join('out', 'Temp')
-
   build_args = []
   if args.type == 'debug':
     build_args.extend(['is_debug=true'])
   else:
     build_args.extend(['is_debug=false'])
-  execute_command(['gn', 'gen', temp_build_dir, '--args=' + ' '.join(build_args)],
+  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(build_args)],
                   dir=args.dir)
 
-  build_cmd = ['autoninja', '-C', temp_build_dir]
+  build_cmd = ['autoninja', '-C', args.build_dir]
   for target in BUILD_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir)
-
-  remove(path.join(args.dir, args.build_dir))
-  move(path.join(args.dir, temp_build_dir), path.join(args.dir, args.build_dir))
 
 
 def package(args):

@@ -128,6 +128,7 @@ def update_test_report(args, target, report):
 
 def main():
   args = parse_arguments()
+  aquarium_build_failed = False
 
   # Update Chrome
   if args.chrome_dir:
@@ -142,6 +143,7 @@ def main():
         execute_command(build_cmd, return_log=True)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['admin'], e)
+        raise e
 
     args.chrome_revision = execute_command(['build_chrome', 'rev', '--dir', args.chrome_dir],
                                            print_log=False, return_log=True)
@@ -159,6 +161,7 @@ def main():
         execute_command(build_cmd, return_log=True)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['aquarium'], e)
+        aquarium_build_failed = True
 
     args.aquarium_revision = execute_command(['build_aquarium', 'rev', '--dir', args.aquarium_dir],
                                              print_log=False, return_log=True)
@@ -167,6 +170,9 @@ def main():
   target_set = set()
   for job in args.try_jobs:
     target = args.try_job_args[job][0]
+    if target == 'aquarium' and aquarium_build_failed:
+      continue
+
     backend = args.try_job_args[job][1]
     shard = 1
     for key in ['%s_%s' % (target, backend), target]:
