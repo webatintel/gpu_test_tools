@@ -50,7 +50,7 @@ def parse_arguments():
            'pack   :  package executables that can run independently\n'\
            'rev    :  get Chrome revision\n\n')
   parser.add_argument('--type', '-t',
-      choices=['release', 'debug', 'default'], default='release',
+      choices=['release', 'debug', 'default', 'official'], default='release',
       help='Browser type. Default is \'release\'.\n'\
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
@@ -89,18 +89,24 @@ def build(args):
   if args.type == 'debug':
     build_args.extend(['is_debug=true'])
   else:
-    build_args.extend(['is_debug=false', 'dcheck_always_on=true'])
+    build_args.extend(['is_debug=false'])
+    if args.type == 'official':
+      build_args.extend(['proprietary_codecs=true'])
+      if is_win():
+        build_args.extend(['ffmpeg_branding="Chrome"'])
+    else:
+      build_args.extend(['dcheck_always_on=true'])
 
-  if args.type == 'default':
-    build_args.extend(['is_component_build=false'])
-  else:
+  if args.type == 'debug' or args.type == 'release':
     build_args.extend(['is_component_build=true'])
+  else:
+    build_args.extend(['is_component_build=false'])
 
   if args.type == 'debug':
     build_args.extend(['symbol_level=2'])
   elif args.type == 'release':
     build_args.extend(['symbol_level=1'])
-  elif args.type == 'default':
+  else:
     build_args.extend(['symbol_level=0'])
 
   env = get_env()
