@@ -29,7 +29,6 @@
     "webgl_conformance_d3d9_passthrough_tests",
     "webgl2_conformance_tests",
     "webgl2_conformance_desktop_tests",
-    "webgl_conformance_gl_passthrough_tests",
     "webgl2_conformance_gl_passthrough_tests",
     "angle_end2end_tests",
     "angle_perftests",
