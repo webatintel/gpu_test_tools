@@ -42,11 +42,12 @@ def parse_arguments():
       description='Chrome build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('commands', nargs='*',
-      choices=['sync', 'build', 'pack', 'rev'], default='build',
+      choices=['update', 'sync', 'build', 'pack', 'rev'], default='build',
       help='Specify the command. Default is \'build\'.\n'\
            'Can specify multiple commands at the same time.\n\n'\
-           'sync   :  fetch latest source code\n'\
-           'build  :  build targets\n'\
+           'update :  update the Chrome source and rebase current branch\n'\
+           'sync   :  run gclient sync\n'\
+           'build  :  build all targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get Chrome revision\n\n')
   parser.add_argument('--type', '-t',
@@ -69,11 +70,14 @@ def parse_arguments():
   return args
 
 
-def sync(args):
+def update(args):
   execute_command(['git', 'fetch', CHROME_REMOTE_NAME],
                   dir=args.dir)
   execute_command(['git', 'rebase', CHROME_REMOTE_NAME + '/' + CHROME_REMOTE_BRANCH],
                   dir=args.dir)
+
+
+def sync(args):
   try:
     execute_command(['gclient', 'sync', '-D'],
                     print_log=False, return_log=True,
@@ -85,29 +89,31 @@ def sync(args):
 
 
 def build(args):
-  build_args = ['enable_nacl=false', 'blink_symbol_level=0']
+  build_args = ['proprietary_codecs=true',
+                'ffmpeg_branding="Chrome"']
+
   if args.type == 'debug':
     build_args.extend(['is_debug=true'])
   else:
     build_args.extend(['is_debug=false'])
-    if args.type == 'official':
-      build_args.extend(['proprietary_codecs=true'])
-      if is_win():
-        build_args.extend(['ffmpeg_branding="Chrome"'])
-    else:
-      build_args.extend(['dcheck_always_on=true'])
 
   if args.type == 'debug' or args.type == 'release':
     build_args.extend(['is_component_build=true'])
   else:
     build_args.extend(['is_component_build=false'])
 
-  if args.type == 'debug':
-    build_args.extend(['symbol_level=2'])
-  elif args.type == 'release':
-    build_args.extend(['symbol_level=1'])
+  if args.type == 'official':
+    build_args.extend(['is_official_build=true',
+                       'symbol_level=0'])
   else:
-    build_args.extend(['symbol_level=0'])
+    build_args.extend(['dcheck_always_on=true',
+                       'strip_absolute_paths_from_debug_symbols=true',
+                       'build_angle_gles1_conform_tests=true',
+                       'internal_gles2_conform_tests=true'])
+    if args.type == 'debug':
+      build_args.extend(['symbol_level=2'])
+    else:
+      build_args.extend(['symbol_level=1'])
 
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
@@ -156,7 +162,9 @@ def get_revision(args):
 def main():
   args = parse_arguments()
   for command in args.commands:
-    if command == 'sync':
+    if command == 'update':
+      update(args)
+    elif command == 'sync':
       sync(args)
     elif command == 'build':
       build(args)

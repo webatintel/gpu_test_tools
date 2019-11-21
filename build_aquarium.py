@@ -38,11 +38,12 @@ def parse_arguments():
       description='Aquarium build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('commands', nargs='*',
-      choices=['sync', 'build', 'pack', 'rev'], default='build',
+      choices=['update', 'sync', 'build', 'pack', 'rev'], default='build',
       help='Specify the command. Default is \'build\'.\n'\
            'Can specify multiple commands at the same time.\n\n'\
-           'sync   :  fetch latest source code\n'\
-           'build  :  build targets\n'\
+           'update :  update the Aquarium source and rebase current branch\n'\
+           'sync   :  run gclient sync, update the Dawn source and rebase current branch\n'\
+           'build  :  build all targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get the commit ID of Aquarium and Dawn\n\n')
   parser.add_argument('--type', '-t',
@@ -66,13 +67,16 @@ def parse_arguments():
   return args
 
 
-def sync(args):
+def update(args):
   execute_command(['git', 'fetch', AQUARIUM_REMOTE_NAME],
                   dir=args.dir)
   execute_command(['git', 'rebase', AQUARIUM_REMOTE_NAME + '/' + AQUARIUM_REMOTE_BRANCH],
                   dir=args.dir)
   execute_command(['git', 'checkout', 'master'],
                   dir=args.dawn_dir)
+
+
+def sync(args):
   try:
     execute_command(['gclient', 'sync', '-D'],
                     print_log=False, return_log=True,
@@ -137,7 +141,9 @@ def get_revision(args):
 def main():
   args = parse_arguments()
   for command in args.commands:
-    if command == 'sync':
+    if command == 'update':
+      update(args)
+    elif command == 'sync':
       sync(args)
     elif command == 'build':
       build(args)

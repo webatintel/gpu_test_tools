@@ -22,10 +22,12 @@ def parse_arguments():
       help='Chrome source directory.\n\n')
   parser.add_argument('--aquarium-dir', '-a',
       help='Aquarium source directory.\n\n')
-  parser.add_argument('--build', '-b', action='store_true',
-      help='Rebuild before running tests.\n\n')
+  parser.add_argument('--update', '-u', action='store_true',
+      help='Update the Chrome source and rebase current branch, then same as --sync.\n\n')
   parser.add_argument('--sync', '-s', action='store_true',
-      help='Fetch latest source code and rebuild before running tests.\n\n')
+      help='Run gclient sync, then same as --build.\n\n')
+  parser.add_argument('--build', '-b', action='store_true',
+      help='Rebuild all targets before running tests.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
   parser.add_argument('--iris', action='store_true',
@@ -94,7 +96,7 @@ def update_test_report(args, target, report):
   new_pass = 0
   new_fail = 0
   for line in report.splitlines():
-    match = re_match(r'^.*\[Falky Pass:(\d+)\].*$', line)
+    match = re_match(r'^.*\[Flaky Pass:(\d+)\].*$', line)
     if match:
       flaky_pass += int(match.group(1))
     match = re_match(r'^.*\[New Pass:(\d+)\].*$', line)
@@ -132,9 +134,11 @@ def main():
 
   # Update Chrome
   if args.chrome_dir:
-    if args.sync or args.build:
+    if args.update or args.sync or args.build:
       build_cmd = ['build_chrome']
-      if args.sync:
+      if args.update:
+        build_cmd.extend(['update', 'sync', 'build'])
+      elif args.sync:
         build_cmd.extend(['sync', 'build'])
       elif args.build:
         build_cmd.extend(['build'])
@@ -150,9 +154,11 @@ def main():
 
   # Update Aquarium
   if args.aquarium_dir:
-    if args.sync or args.build:
+    if args.update or args.sync or args.build:
       build_cmd = ['build_aquarium']
-      if args.sync:
+      if args.update:
+        build_cmd.extend(['update', 'sync', 'build'])
+      elif args.sync:
         build_cmd.extend(['sync', 'build'])
       elif args.build:
         build_cmd.extend(['build'])
