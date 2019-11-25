@@ -41,7 +41,7 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Chrome build tools',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('commands', nargs='*',
+  parser.add_argument('command', nargs='*',
       choices=['update', 'sync', 'build', 'pack', 'rev'], default='build',
       help='Specify the command. Default is \'build\'.\n'\
            'Can specify multiple commands at the same time.\n\n'\
@@ -50,23 +50,25 @@ def parse_arguments():
            'build  :  build all targets\n'\
            'pack   :  package executables that can run independently\n'\
            'rev    :  get Chrome revision\n\n')
-  parser.add_argument('--type', '-t',
+  parser.add_argument('--type', '-t', nargs='*',
       choices=['release', 'debug', 'default', 'official'], default='release',
       help='Browser type. Default is \'release\'.\n'\
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Chrome source directory.\n\n')
-  parser.add_argument('--pack-dir', '-p', default='.',
-      help='Destnation directory, used by the command \'pack\'.\n\n')
+  parser.add_argument('--pack-dir', '-p',
+      help='Package the binaries to a directory.\n\n')
+  parser.add_argument('--zip-file', '-z',
+      help='Package the binaries to a zip file.\n\n')
   args = parser.parse_args()
 
-  if not isinstance(args.commands, list):
-    args.commands = [args.commands]
+  if not isinstance(args.command, list):
+    args.command = [args.command]
+  if not isinstance(args.type, list):
+    args.type = [args.type]
+
   args.dir = path.abspath(args.dir)
-  args.pack_dir = path.abspath(args.pack_dir)
-  args.build_dir = path.join('out', args.type.title())
-  assert not 'pack' in args.commands or args.dir != args.pack_dir
   return args
 
 
@@ -78,42 +80,33 @@ def update(args):
 
 
 def sync(args):
-  try:
-    execute_command(['gclient', 'sync', '-D'],
-                    print_log=False, return_log=True,
-                    dir=args.dir)
-  except CalledProcessError as e:
-    print(e.cmd)
-    print(e.output)
-    raise e
+  execute_command(['gclient', 'sync', '-D'],
+                  dir=args.dir)
 
 
 def build(args):
   build_args = ['proprietary_codecs=true',
                 'ffmpeg_branding="Chrome"']
 
-  if args.type == 'debug':
-    build_args.extend(['is_debug=true'])
+  if args.build_type == 'official':
+    build_args.extend(['is_official_build=true'])
   else:
-    build_args.extend(['is_debug=false'])
-
-  if args.type == 'debug' or args.type == 'release':
-    build_args.extend(['is_component_build=true'])
-  else:
-    build_args.extend(['is_component_build=false'])
-
-  if args.type == 'official':
-    build_args.extend(['is_official_build=true',
-                       'symbol_level=0'])
-  else:
-    build_args.extend(['dcheck_always_on=true',
-                       'strip_absolute_paths_from_debug_symbols=true',
+    build_args.extend(['strip_absolute_paths_from_debug_symbols=true',
                        'build_angle_gles1_conform_tests=true',
                        'internal_gles2_conform_tests=true'])
-    if args.type == 'debug':
-      build_args.extend(['symbol_level=2'])
+
+    if args.build_type == 'debug':
+      build_args.extend(['is_debug=true',
+                         'symbol_level=2'])
     else:
-      build_args.extend(['symbol_level=1'])
+      build_args.extend(['is_debug=false',
+                         'symbol_level=1',
+                         'dcheck_always_on=true'])
+
+    if args.build_type == 'debug' or args.build_type == 'release':
+      build_args.extend(['is_component_build=true'])
+    else:
+      build_args.extend(['is_component_build=false'])
 
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
@@ -130,10 +123,16 @@ def build(args):
 def package(args):
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
-  pack_file = path.join(args.dir, 'tmp.zip')
-  execute_command([PYTHON_CMD, PACK_SCRIPT, 'zip', args.build_dir, 'telemetry_gpu_integration_test', pack_file],
+  if args.zip_file:
+    zip_file = args.zip_file
+  else:
+    zip_file = path.join(args.dir, 'tmp.zip')
+  execute_command([PYTHON_CMD, PACK_SCRIPT, 'zip', args.build_dir, 'telemetry_gpu_integration_test', zip_file],
                   dir=args.dir, env=env)
-  unzip(pack_file, args.pack_dir, remove_src=True)
+  if not args.pack_dir:
+    return
+
+  unzip(zip_file, args.pack_dir, remove_src=(not args.zip_file))
 
   for content in TARGET_CONTENTS[get_osname()]:
     copy(path.join(args.dir, args.build_dir, content),
@@ -161,14 +160,26 @@ def get_revision(args):
 
 def main():
   args = parse_arguments()
-  for command in args.commands:
+  for command in args.command:
     if command == 'update':
       update(args)
     elif command == 'sync':
       sync(args)
     elif command == 'build':
-      build(args)
+      for build_type in args.type:
+        args.build_type = build_type
+        args.build_dir = path.join('out', build_type.title())
+        build(args)
     elif command == 'pack':
+      assert len(args.type) == 1
+      args.build_dir = path.join('out', args.type[0].title())
+
+      assert args.pack_dir or args.zip_file
+      if args.pack_dir:
+        args.pack_dir = path.abspath(args.pack_dir)
+        assert args.dir != args.pack_dir
+      if args.zip_file:
+        args.zip_file = path.abspath(args.zip_file)
       package(args)
     elif command == 'rev':
       print(get_revision(args))
