@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from util.gpu_test_util import *
+from util.base_util import *
 from os import path
 
 ANGLE_END_TEST_CMD = 'angle_end2end_tests'

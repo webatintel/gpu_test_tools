@@ -4,10 +4,12 @@ import datetime
 import email.utils
 import json
 import os
+import random
 import re
 import shutil
 import smtplib
 import socket
+import string
 import subprocess
 import sys
 import time
@@ -81,6 +83,9 @@ def get_hostname():
 def get_env():
   return os.environ.copy()
 
+def random_string(size):
+  return ''.join(random.choice(string.ascii_lowercase) for i in range(size))
+
 def mkdir(dir):
   try:
     os.makedirs(dir)
@@ -107,25 +112,29 @@ def remove(src):
 def move(src, dest):
   shutil.move(src, dest)
 
-def unzip(src_file, dest_dir, remove_src=False):
-  with zipfile.ZipFile(src_file, 'r') as zip_file:
-    zip_file.extractall(dest_dir)
-  if remove_src:
-    os.remove(src_file)
-  return dest_dir
+def zip(zip_file, src_dir):
+  with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as f:
+    for root, _, files in os.walk(src_dir):
+      for src_file in files:
+        src_file = os.path.join(root, src_file)
+        f.write(src_file, path.relpath(src_file, src_dir))
 
-def read_json(file_name):
+def unzip(zip_file, dest_dir):
+  with zipfile.ZipFile(zip_file, 'r') as f:
+    f.extractall(dest_dir)
+
+def read_json(json_file):
   try:
-    with open(file_name, 'r') as json_file:
-      return json.load(json_file)
+    with open(json_file, 'r') as f:
+      return json.load(f)
   except Exception:
     return {}
 
-def write_json(file_name, content_dict):
+def write_json(json_file, content_dict):
   if not content_dict:
     return
-  with open(file_name, 'w') as json_file:
-    json.dump(content_dict, json_file)
+  with open(json_file, 'w') as f:
+    json.dump(content_dict, f)
 
 def read_line(file_name):
   with open(file_name, 'r') as f:
@@ -159,6 +168,8 @@ def send_email(receivers, subject, body='', attached_files=[]):
     return
   if not isinstance(receivers, list):
     receivers = [receivers]
+  if not isinstance(attached_files, list):
+    attached_files = [attached_files]
 
   message = MIMEMultipart()
   message['From'] = EMAIL_SENDER
@@ -179,6 +190,12 @@ def send_email(receivers, subject, body='', attached_files=[]):
     smtp.quit()
   except Exception as e:
     print(e)
+
+def execute_command_stdout(cmd, dir=None, env=None):
+  process = subprocess.Popen(cmd, shell=is_win(), cwd=dir, env=env)
+  retcode = process.wait()
+  if retcode:
+    raise CalledProcessError(retcode, cmd, '')
 
 def execute_command(cmd,
                     print_log=True, return_log=False, save_log=None,
@@ -220,7 +237,8 @@ def execute_command(cmd,
               sys.stdout.flush()
               if progress_percent == 100:
                 progress_percent = 0
-                print()
+                sys.stdout.write('\n')
+                sys.stdout.flush()
           continue
 
       # Output log

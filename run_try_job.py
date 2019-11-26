@@ -3,7 +3,8 @@
 import argparse
 import sys
 
-from util.gpu_test_util import *
+from util.base_util import *
+from util.project_util import *
 from os import path
 
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
@@ -22,12 +23,14 @@ def parse_arguments():
       help='Chrome source directory.\n\n')
   parser.add_argument('--aquarium-dir', '-a',
       help='Aquarium source directory.\n\n')
-  parser.add_argument('--update', '-u', action='store_true',
-      help='Update the Chrome source and rebase current branch, then same as --sync.\n\n')
-  parser.add_argument('--sync', '-s', action='store_true',
-      help='Run gclient sync, then same as --build.\n\n')
   parser.add_argument('--build', '-b', action='store_true',
       help='Rebuild all targets before running tests.\n\n')
+  parser.add_argument('--update', '-u', action='store_true',
+      help='Fetch from origin and rebase current branch, then synchronize the dependencies before building.\n'\
+           '--build will be enabled automatically\n\n')
+  parser.add_argument('--sync', '-s', action='store_true',
+      help='Synchronize the dependencies before building.\n'\
+           '--build will be enabled automatically\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
   parser.add_argument('--iris', action='store_true',
@@ -58,12 +61,6 @@ def parse_arguments():
   args.try_job_shards = config['try_job_shards']
 
   return args
-
-
-def notify_command_error(receivers, error):
-  send_email(receivers,
-             '%s failed on %s' % (error.cmd[0], get_hostname()),
-             '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
 
 def update_aquarium_report(args, report):
@@ -128,49 +125,50 @@ def update_test_report(args, target, report):
   return title, header + report
 
 
+def build_project(project, args):
+  build_cmd = ['build_project', project, '--type', args.type]
+  if project == 'chrome':
+    build_cmd.extend(['--dir', args.chrome_dir])
+  elif project == 'aquarium':
+    build_cmd.extend(['--dir', args.aquarium_dir])
+
+  if args.update:
+    build_cmd.append('--update')
+  elif args.sync:
+    build_cmd.append('--sync')
+  try:
+    execute_command_stdout(build_cmd)
+  except CalledProcessError:
+    execute_command(build_cmd, return_log=True)
+
+
+def notify_command_error(receivers, error):
+  send_email(receivers,
+             '%s failed on %s' % (error.cmd[0], get_hostname()),
+             '%s\n\n%s' % (' '.join(error.cmd), error.output))
+
+
 def main():
   args = parse_arguments()
   aquarium_build_failed = False
 
-  # Update Chrome
   if args.chrome_dir:
-    if args.update or args.sync or args.build:
-      build_cmd = ['build_chrome']
-      if args.update:
-        build_cmd.extend(['update', 'sync', 'build'])
-      elif args.sync:
-        build_cmd.extend(['sync', 'build'])
-      elif args.build:
-        build_cmd.extend(['build'])
-      build_cmd.extend(['--type', args.type, '--dir', args.chrome_dir])
+    if args.build or args.update or args.sync:
       try:
-        execute_command(build_cmd, return_log=True)
+        build_project('chrome', args)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['admin'], e)
         raise e
+    args.chrome_revision = get_chrome_revision(args.chrome_dir)
 
-    args.chrome_revision = execute_command(['build_chrome', 'rev', '--dir', args.chrome_dir],
-                                           print_log=False, return_log=True)
-
-  # Update Aquarium
   if args.aquarium_dir:
-    if args.update or args.sync or args.build:
-      build_cmd = ['build_aquarium']
-      if args.update:
-        build_cmd.extend(['update', 'sync', 'build'])
-      elif args.sync:
-        build_cmd.extend(['sync', 'build'])
-      elif args.build:
-        build_cmd.extend(['build'])
-      build_cmd.extend(['--type', args.type, '--dir', args.aquarium_dir])
+    if args.build or args.update or args.sync:
       try:
-        execute_command(build_cmd, return_log=True)
+        build_project('aquarium', args)
       except CalledProcessError as e:
         notify_command_error(args.report_receivers['aquarium'], e)
         aquarium_build_failed = True
-
-    args.aquarium_revision = execute_command(['build_aquarium', 'rev', '--dir', args.aquarium_dir],
-                                             print_log=False, return_log=True)
+    args.aquarium_revision = get_aquarium_revision(args.aquarium_dir)
 
   # Run tests
   target_set = set()

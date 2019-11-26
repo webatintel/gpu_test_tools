@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from util.gpu_test_util import *
+from util.base_util import *
 from os import path
 
 PATTERN_RESULT_FAIL = r'^\d+ test(s?) failed:$'
