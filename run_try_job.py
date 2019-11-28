@@ -26,7 +26,8 @@ def parse_arguments():
   parser.add_argument('--build', '-b', action='store_true',
       help='Rebuild all targets before running tests.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
-      help='Fetch from origin and rebase current branch, then synchronize the dependencies before building.\n'\
+      help='Fetch from origin and rebase current branch,\n'\
+           'then synchronize the dependencies before building.\n'\
            '--build will be enabled automatically\n\n')
   parser.add_argument('--sync', '-s', action='store_true',
       help='Synchronize the dependencies before building.\n'\
@@ -34,7 +35,7 @@ def parse_arguments():
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
   parser.add_argument('--iris', action='store_true',
-      help='Enable Iris driver. (Only available on Ubuntu/Mesa environment)\n\n')
+      help='Enable Iris driver. (Only available on Linux)\n\n')
   args = parser.parse_args()
 
   if args.chrome_dir:

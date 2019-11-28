@@ -80,26 +80,27 @@ def parse_arguments():
            'release/debug/default assume that the binaries are\n'\
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
-      help='Fetch from origin and rebase current branch, then synchronize the dependencies before building.\n\n')
+      help='Fetch from origin and rebase current branch,\n'\
+           'then synchronize the dependencies before building.\n\n')
   parser.add_argument('--sync', '-s', action='store_true',
       help='Synchronize the dependencies before building.\n\n')
   parser.add_argument('--pack', '-p',
       help='Package the binaries to a directory after building.\n\n')
-  parser.add_argument('--zip', '-z', action='store_true',
-      help='Package the binaries to a zip file instead of a directory.\n\n')
+  parser.add_argument('--zip', '-z',
+      help='Package the binaries to a zip file after building.\n\n')
   args = parser.parse_args()
 
   if not isinstance(args.type, list):
     args.type = [args.type]
 
-  if args.pack and len(args.type) > 1:
-    raise Exception('--pack do not support multiple build types')
-  if args.zip and (not args.pack or not args.pack.endswith('zip')):
-    raise Exception('--pack must specify a name of zip file')
+  if (args.pack or args.zip) and len(args.type) > 1:
+    raise Exception('packaging do not support multiple build types')
 
   args.dir = path.abspath(args.dir)
   if args.pack:
     args.pack = path.abspath(args.pack)
+  if args.zip:
+    args.zip = path.abspath(args.zip)
   if args.project == 'aquarium':
     args.dawn_dir = path.join(args.dir, 'third_party', 'dawn')
   return args
@@ -160,10 +161,10 @@ def pack_chrome(args):
   execute_command([PYTHON_CMD, CHROME_PACK_SCRIPT, 'zip', args.build_dir, 'telemetry_gpu_integration_test', zip_file],
                   dir=args.dir, env=env)
 
-  if args.zip:
-    pack_dir = path.join(args.dir, random_string(8))
-  else:
+  if args.pack:
     pack_dir = args.pack
+  else:
+    pack_dir = path.join(args.dir, random_string(8))
   unzip(zip_file, pack_dir)
   remove(zip_file)
 
@@ -176,7 +177,8 @@ def pack_chrome(args):
       chmod(path.join(pack_dir, args.build_dir, target), 755)
 
   if args.zip:
-    zip(args.pack, pack_dir)
+    zip(args.zip, pack_dir)
+  if not args.pack:
     remove(pack_dir)
 
 
@@ -217,10 +219,10 @@ def build_aquarium(args):
 
 
 def pack_aquarium(args):
-  if args.zip:
-    pack_dir = path.join(args.dir, random_string(8))
-  else:
+  if args.pack:
     pack_dir = args.pack
+  else:
+    pack_dir = path.join(args.dir, random_string(8))
   mkdir(path.join(pack_dir, args.build_dir))
 
   for content in AQUARIUM_ASSETS:
@@ -237,6 +239,7 @@ def pack_aquarium(args):
 
   if args.zip:
     zip(args.pack, pack_dir)
+  if not args.pack:
     remove(pack_dir)
 
 
@@ -263,7 +266,7 @@ def main():
     elif args.project == 'aquarium':
       build_aquarium(args)
   
-  if args.pack:
+  if args.pack or args.zip:
     if args.project == 'chrome':
       pack_chrome(args)
     elif args.project == 'aquarium':
