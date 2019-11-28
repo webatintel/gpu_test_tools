@@ -132,19 +132,20 @@ def build_project(project, args):
   elif project == 'aquarium':
     build_cmd.extend(['--dir', args.aquarium_dir])
 
-  if args.update:
-    build_cmd.append('--update')
-  elif args.sync:
-    build_cmd.append('--sync')
   try:
-    execute_command_stdout(build_cmd)
+    cmd = build_cmd[:]
+    if args.update:
+      cmd.append('--update')
+    elif args.sync:
+      cmd.append('--sync')
+    execute_command_stdout(cmd)
   except CalledProcessError:
     execute_command(build_cmd, return_log=True)
 
 
 def notify_command_error(receivers, error):
   send_email(receivers,
-             '%s failed on %s' % (error.cmd[0], get_hostname()),
+             '%s %s failed on %s' % (error.cmd[0], error.cmd[1], get_hostname()),
              '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
 
