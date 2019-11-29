@@ -23,6 +23,8 @@ WEBGL2_CONFORMANCE_VERSION = '2.0.1'
 WEBGL2_ABBREVIATED_RESULT = path.join('content', 'test', 'data', 'gpu',
     'webgl2_conformance_tests_output.json')
 
+TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
+
 def parse_arguments():
   parser = argparse.ArgumentParser(
       description='GPU test tools\n\n',
@@ -36,7 +38,7 @@ def parse_arguments():
            'fyi      :  Miscellaneous less important tests\n'\
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--backend', '-b',
-      choices=['gl', 'vulkan', 'd3d9', 'desktop',
+      choices=['conformance', 'gl', 'vulkan', 'd3d9', 'desktop',
                'end2end', 'perf',
                'pixel',
                'd3d12', 'dawn_d3d12', 'dawn_vulkan'],
@@ -137,22 +139,11 @@ def generate_webgl_arguments(args):
 
   # Browser arguments
   browser_args = ['--js-flags=--expose-gc',
-                  '--force_high_performance_gpu',
                   '--disable-backgrounding-occluded-windows']
-  if args.backend == 'desktop':
-    pass
-  elif args.backend == 'conformance':
-    browser_args.extend(['--use-cmd-decoder=validating'])
-  elif args.backend == 'gl':
-    browser_args.extend(['--use-gl=angle',
-                         '--use-angle=gl',
-                         '--use-cmd-decoder=passthrough'])
-  elif args.backend == 'vulkan':
-    browser_args.extend(['--use-angle=vulkan',
-                         '--use-cmd-decoder=passthrough'])
-  elif args.backend == 'd3d9':
-    browser_args.extend(['--use-angle=d3d9',
-                         '--use-cmd-decoder=passthrough'])
+  if args.backend != 'desktop':
+    config = read_json(TRY_JOB_CONFIG)
+    key = '%s_%s' % (args.target.replace('webgl2', 'webgl'), args.backend)
+    browser_args.extend(config['try_job_browser_args'][key])
 
   # WebGL arguments
   webgl_args = []

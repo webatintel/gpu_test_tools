@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 
-def execute_command(cmd, dir):
+def execute_command(cmd, dir=None):
   process = subprocess.Popen(cmd, shell=(sys.platform == 'win32'), cwd=dir)
   retcode = process.wait()
   if retcode:
@@ -31,6 +31,9 @@ def main():
                      '--update',
                      '--email'],
                     test_dir)
+    execute_command(['check_try_job',
+                     '--dir', os.path.join(project_dir, 'chromium'),
+                     '--email'])
 
 if __name__ == '__main__':
   sys.exit(main())

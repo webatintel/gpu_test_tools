@@ -218,6 +218,10 @@ def execute_command(cmd,
 
     for line in iter(process.stdout.readline, b''):
       line = line.strip()
+      if (line.startswith('Unhandled inspector message') or
+          line.startswith('WARNING:root:Unhandled inspector message')):
+        continue
+
       # Generate progress bar
       if is_progress_command:
         match = re_match(PATTERN_NINJA, line)

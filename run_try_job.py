@@ -58,7 +58,7 @@ def parse_arguments():
   elif is_mac():
     args.try_jobs = config['mac_jobs']
 
-  args.try_job_args = config['try_job_args']
+  args.try_job_target = config['try_job_target']
   args.try_job_shards = config['try_job_shards']
 
   return args
@@ -175,28 +175,24 @@ def main():
   # Run tests
   target_set = set()
   for job in args.try_jobs:
-    target = args.try_job_args[job][0]
+    target = args.try_job_target[job][0]
+    backend = args.try_job_target[job][1]
     if target == 'aquarium' and aquarium_build_failed:
       continue
 
-    backend = args.try_job_args[job][1]
-    shard = 1
-    for key in ['%s_%s' % (target, backend), target]:
-      if args.try_job_shards.has_key(key):
-        shard = args.try_job_shards[key]
-        break
-
-    cmd = ['run_gpu_test', target, '--type', args.type]
-    if backend:
-      cmd.extend(['--backend', backend])
-    if shard > 1:
-      cmd.extend(['--shard', str(shard)])
+    cmd = ['run_gpu_test', target, '--backend', backend, '--type', args.type]
     if target == 'aquarium':
       assert args.aquarium_dir
       cmd.extend(['--dir', args.aquarium_dir])
     else:
       assert args.chrome_dir
       cmd.extend(['--dir', args.chrome_dir])
+
+    for key in ['%s_%s' % (target, backend), target]:
+      if args.try_job_shards.has_key(key):
+        cmd.extend(['--shard', str(args.try_job_shards[key])])
+        break
+
     if target.startswith('webgl') and args.iris:
       cmd.append('--iris')
 

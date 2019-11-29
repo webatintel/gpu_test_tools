@@ -5,16 +5,15 @@ from os import path
 
 PATTERN_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
 
-def get_chrome_revision(chrome_dir):
+def get_chrome_revision(chrome_dir, back_level=0):
   try:
-    for i in range(0, 3):
-      log = execute_command(['git', 'log', 'HEAD~%d' % i, '-1'],
-                            print_log=False, return_log=True, dir=chrome_dir)
-      log_lines = log.split('\n')
-      for j in range(len(log_lines)-1, -1, -1):
-        match = re_match(PATTERN_REVISION, log_lines[j])
-        if match:
-          return match.group(1)
+    log = execute_command(['git', 'log', '-1', 'HEAD~%d' % back_level],
+                          print_log=False, return_log=True, dir=chrome_dir)
+    log_lines = log.split('\n')
+    for i in range(len(log_lines)-1, -1, -1):
+      match = re_match(PATTERN_REVISION, log_lines[i])
+      if match:
+        return match.group(1)
   except CalledProcessError:
     pass
   return ''
