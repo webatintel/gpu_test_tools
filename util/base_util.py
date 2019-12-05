@@ -203,7 +203,9 @@ def execute_command(cmd,
   log_lines = []
   log_file = None
   is_progress_command = cmd[0].find('ninja') >= 0
-  progress_percent = 0
+  if is_progress_command:
+    progress_percent = 0
+    start_time = datetime.datetime.now()
 
   try:
     if print_log:
@@ -238,11 +240,14 @@ def execute_command(cmd,
                 line += ' '
               line += '] %d%%' % progress_percent
               sys.stdout.write('\r' + line)
-              sys.stdout.flush()
+              time_duration = datetime.datetime.now() - start_time
               if progress_percent == 100:
                 progress_percent = 0
-                sys.stdout.write('\n')
-                sys.stdout.flush()
+                sys.stdout.write('    Total time: %d Minutes\n' % (time_duration.total_seconds() / 60))
+              else:
+                time_estimation = time_duration.total_seconds() * (100 - progress_percent) / progress_percent
+                sys.stdout.write('    Time remaining: %d Minutes' % (time_estimation / 60))
+              sys.stdout.flush()
           continue
 
       # Output log
