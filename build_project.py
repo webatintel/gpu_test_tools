@@ -124,7 +124,17 @@ def build_chrome(args):
 
   if args.build_type == 'official':
     build_args.extend(['is_official_build=true'])
+  elif args.build_type == 'default':
+    build_args.extend(['is_debug=false',
+                       'is_component_build=false',
+                       'symbol_level=1',
+                       'dcheck_always_on=true',
+                       'build_angle_gles1_conform_tests=true',
+                       'internal_gles2_conform_tests=true'])
   else:
+    build_args.extend(['is_component_build=true',
+                       'enable_nacl=false',
+                       'blink_symbol_level=0'])
     if args.build_type == 'debug':
       build_args.extend(['is_debug=true',
                          'symbol_level=2'])
@@ -132,15 +142,6 @@ def build_chrome(args):
       build_args.extend(['is_debug=false',
                          'symbol_level=1',
                          'dcheck_always_on=true'])
-
-    if args.build_type == 'debug' or args.build_type == 'release':
-      build_args.extend(['is_component_build=true'])
-    else:
-      build_args.extend(['is_component_build=false'])
-
-    if args.build_type == 'default':
-      build_args.extend(['build_angle_gles1_conform_tests=true',
-                         'internal_gles2_conform_tests=true'])
 
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
