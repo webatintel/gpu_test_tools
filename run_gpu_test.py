@@ -38,18 +38,18 @@ def parse_arguments():
            'fyi      :  Miscellaneous less important tests\n'\
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--backend', '-b',
-      choices=['conformance', 'gl', 'vulkan', 'd3d9', 'desktop',
+      choices=['passthrough', 'validating', 'gl', 'vulkan', 'd3d9',
                'end2end', 'perf',
                'pixel',
                'd3d12', 'dawn_d3d12', 'dawn_vulkan'],
       help='Specify the backend. Not all targets are supporting all backends.\n'\
            'Run default tests if the backend is not specified.\n'\
            '\n[WebGL/WebGL2]\n'\
-           'conformance : standard conformance test (default)\n'\
+           'passthrough : passthrough command decoder with default backend\n'\
+           'validating  : validating command decoder with default backend\n'\
            'gl          : opengl passthrough\n'\
            'vulkan      : vulkan passthrough\n'\
            'd3d9        : d3d9   passthrough\n'\
-           'desktop     : default backend of desktop version\n'\
            '\n[ANGLE]\n'\
            'end2end : end2end test (default)\n'\
            'perf    : performance test\n'\
@@ -86,8 +86,8 @@ def parse_arguments():
 
   if args.target.startswith('webgl'):
     if not args.backend:
-      args.backend = 'conformance'
-    if (args.backend != 'conformance' and args.backend != 'desktop'
+      args.backend = 'passthrough'
+    if (args.backend != 'passthrough' and args.backend != 'validating'
         and args.backend != 'gl' and args.backend != 'vulkan' and args.backend != 'd3d9'):
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'angle':
@@ -140,10 +140,9 @@ def generate_webgl_arguments(args):
   # Browser arguments
   browser_args = ['--enable-logging=stderr',
                   '--disable-backgrounding-occluded-windows']
-  if args.backend != 'desktop':
-    config = read_json(TRY_JOB_CONFIG)
-    key = '%s_%s' % (args.target.replace('webgl2', 'webgl'), args.backend)
-    browser_args.extend(config['try_job_browser_args'][key])
+  config = read_json(TRY_JOB_CONFIG)
+  key = '%s_%s' % (args.target.replace('webgl2', 'webgl'), args.backend)
+  browser_args.extend(config['try_job_browser_args'][key])
 
   # WebGL arguments
   webgl_args = []

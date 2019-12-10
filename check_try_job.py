@@ -145,6 +145,7 @@ def main():
         name = name.replace('_tests', '')
         name = name.replace('_passthrough', '')
         name = name.replace('conformance_', '')
+        name = name.replace('_conformance', '_passthrough')
         if config['try_job_browser_args'].has_key(name):
           job.browser_args.sort()
           config['try_job_browser_args'][name].sort()
@@ -154,13 +155,6 @@ def main():
             print(title + ': ' + body)
             if args.email:
               send_email(config['report_receivers']['admin'], title, body)
-            return 0
-        else:
-          title = 'Missing try job\'s browser arguments'
-          print(title + ': ' + job.name)
-          if args.email:
-            send_email(config['report_receivers']['admin'], title, job.name)
-          return 0
 
   for key, value in win_jobs.items():
     if not key in config['win_jobs']:
@@ -168,7 +162,6 @@ def main():
       print(title + ': ' + key)
       if args.email:
         send_email(config['report_receivers']['admin'], title, key)
-      return 0
 
   for key, value in linux_jobs.items():
     if not key in config['linux_jobs']:
@@ -176,7 +169,6 @@ def main():
       print(title + ': ' + key)
       if args.email:
         send_email(config['report_receivers']['admin'], title, key)
-      return 0
 
   return 0
 
