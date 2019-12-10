@@ -70,7 +70,7 @@ def parse_arguments():
       description='Build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('project', nargs='?',
-      choices=['chrome', 'aquarium'], default='chrome',
+      choices=['chrome', 'aquarium', 'mesa'], default='chrome',
       help='Specify the project. Default is \'chrome\'.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Project source directory.\n\n')
@@ -84,10 +84,16 @@ def parse_arguments():
            'then synchronize the dependencies before building.\n\n')
   parser.add_argument('--sync', '-s', action='store_true',
       help='Synchronize the dependencies before building.\n\n')
+  parser.add_argument('--install', '-i', action='store_true',
+      help='Install the package after building.\n\n')
   parser.add_argument('--pack', '-p',
       help='Package the binaries to a directory after building.\n\n')
   parser.add_argument('--zip', '-z',
       help='Package the binaries to a zip file after building.\n\n')
+  parser.add_argument('--prefix',
+      help='Where the package to be installed\n\n')
+  parser.add_argument('--iris', action='store_true',
+      help='Build Iris driver.\n\n')
   args = parser.parse_args()
 
   if not isinstance(args.type, list):
@@ -103,6 +109,9 @@ def parse_arguments():
     args.zip = path.abspath(args.zip)
   if args.project == 'aquarium':
     args.dawn_dir = path.join(args.dir, 'third_party', 'dawn')
+  if args.project == 'mesa':
+    if not args.prefix:
+      args.prefix = '/home/work/workspace/env/mesa'
   return args
 
 
@@ -243,9 +252,34 @@ def pack_aquarium(args):
   if not args.pack:
     remove(pack_dir)
 
+def build_mesa(args):
+  build_args = ['-Dprefix=' + args.prefix,
+                '-Dplatforms=x11,drm',
+                '-Ddri-drivers=i915,i965',
+                '-Dvulkan-drivers=intel',
+                '-Dgallium-drivers=' + ('iris' if args.iris else ''),
+                '-Ddri3=true',
+                '-Dgles1=true',
+                '-Dgles2=true',
+                '-Dgbm=true',
+                '-Dshared-glapi=true']
+
+  meson_cmd = ['meson', args.build_dir]
+  meson_cmd.extend(build_args)
+  execute_command(meson_cmd, dir=args.dir)
+
+  build_cmd = ['ninja', '-C', args.build_dir]
+  if args.install:
+    build_cmd.append('install')
+  execute_command(build_cmd, dir=args.dir)
+
 
 def main():
   args = parse_arguments()
+  if args.project == 'mesa':
+    args.build_dir = 'out'
+    build_mesa(args)
+    return 0
 
   if args.update:
     if args.project == 'chrome':
