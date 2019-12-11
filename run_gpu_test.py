@@ -45,7 +45,7 @@ def parse_arguments():
       help='Specify the backend. Not all targets are supporting all backends.\n'\
            'Run default tests if the backend is not specified.\n'\
            '\n[WebGL/WebGL2]\n'\
-           'passthrough : passthrough command decoder with default backend\n'\
+           'passthrough : passthrough command decoder with default backend (default)\n'\
            'validating  : validating command decoder with default backend\n'\
            'gl          : opengl passthrough\n'\
            'vulkan      : vulkan passthrough\n'\
