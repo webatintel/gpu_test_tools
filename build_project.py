@@ -17,6 +17,9 @@ AQUARIUM_REMOTE_BRANCH = 'master'
 DAWN_REMOTE_NAME = 'origin'
 DAWN_REMOTE_BRANCH = 'master'
 
+MESA_REMOTE_NAME = 'origin'
+MESA_REMOTE_BRANCH = 'master'
+
 CHROME_BUILD_TARGETS = [
   'chrome',
   'angle_end2end_tests',
@@ -121,33 +124,35 @@ def sync_chrome(args):
 
 
 def build_chrome(args):
-  build_args = ['proprietary_codecs=true',
-                'ffmpeg_branding="Chrome"']
+  build_args = {}
+  build_args['proprietary_codecs'] = 'true'
+  build_args['ffmpeg_branding'] = '"Chrome"'
 
   if args.build_type == 'official':
-    build_args.extend(['is_official_build=true'])
+    build_args['is_official_build'] = 'true'
   elif args.build_type == 'default':
-    build_args.extend(['is_debug=false',
-                       'is_component_build=false',
-                       'symbol_level=1',
-                       'dcheck_always_on=true',
-                       'build_angle_gles1_conform_tests=true',
-                       'internal_gles2_conform_tests=true'])
+    build_args['is_debug'] = 'false'
+    build_args['is_component_build'] = 'false'
+    build_args['symbol_level'] = '1'
+    build_args['dcheck_always_on'] = 'true'
+    build_args['build_angle_gles1_conform_tests'] = 'true'
+    build_args['internal_gles2_conform_tests'] = 'true'
   else:
-    build_args.extend(['is_component_build=true',
-                       'enable_nacl=false',
-                       'blink_symbol_level=0'])
+    build_args['is_component_build'] = 'true'
+    build_args['enable_nacl'] = 'false'
+    build_args['blink_symbol_level'] = '0'
     if args.build_type == 'debug':
-      build_args.extend(['is_debug=true',
-                         'symbol_level=2'])
+      build_args['is_debug'] = 'true'
+      build_args['symbol_level'] = '2'
     else:
-      build_args.extend(['is_debug=false',
-                         'symbol_level=1',
-                         'dcheck_always_on=true'])
+      build_args['is_debug'] = 'false'
+      build_args['symbol_level'] = '1'
+      build_args['dcheck_always_on'] = 'true'
 
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
-  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(build_args)],
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)],
                   dir=args.dir, env=env)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
@@ -206,12 +211,13 @@ def sync_aquarium(args):
 
 
 def build_aquarium(args):
-  build_args = []
+  build_args = {}
   if args.build_type == 'debug':
-    build_args.extend(['is_debug=true'])
+    build_args['is_debug'] = 'true'
   else:
-    build_args.extend(['is_debug=false'])
-  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(build_args)],
+    build_args['is_debug'] = 'false'
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)],
                   dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
@@ -241,14 +247,22 @@ def pack_aquarium(args):
       chmod(path.join(pack_dir, args.build_dir, target), 755)
 
   if args.zip:
-    zip(args.pack, pack_dir)
+    zip(args.zip, pack_dir)
   if not args.pack:
     remove(pack_dir)
 
+
+def update_mesa(args):
+  execute_command(['git', 'fetch', MESA_REMOTE_NAME],
+                  dir=args.dir)
+  execute_command(['git', 'rebase', MESA_REMOTE_NAME + '/' + MESA_REMOTE_BRANCH],
+                  dir=args.dir)
+
+
 def build_mesa(args):
   build_args = {}
-  if args.pack:
-    build_args['prefix'] = args.pack
+  if args.prefix:
+    build_args['prefix'] = args.prefix
   build_args['platforms'] = 'x11,drm'
   build_args['dri-drivers'] = 'i915,i965'
   build_args['vulkan-drivers'] = 'intel'
@@ -263,22 +277,30 @@ def build_mesa(args):
   meson_cmd.extend(['-D%s=%s' % (key,value) for key,value in build_args.iteritems()])
   execute_command(meson_cmd, dir=args.dir)
 
-  build_cmd = ['ninja', '-C', args.build_dir, 'install']
+  build_cmd = ['ninja', '-C', args.build_dir]
   execute_command(build_cmd, dir=args.dir)
+
+
+def pack_mesa(args):
+  pack_cmd = ['ninja', '-C', args.build_dir, 'install']
+  execute_command(pack_cmd, dir=args.dir)
+
+  if args.zip:
+    zip(args.zip, args.prefix)
+  if not args.pack:
+    remove(args.prefix)
 
 
 def main():
   args = parse_arguments()
-  if args.project == 'mesa':
-    args.build_dir = 'out'
-    build_mesa(args)
-    return 0
 
   if args.update:
     if args.project == 'chrome':
       update_chrome(args)
     elif args.project == 'aquarium':
       update_aquarium(args)
+    elif args.project == 'mesa':
+      update_mesa(args)
 
   if args.update or args.sync:
     if args.project == 'chrome':
@@ -287,18 +309,33 @@ def main():
       sync_aquarium(args)
 
   for build_type in args.type:
-    args.build_type = build_type
-    args.build_dir = path.join('out', build_type.title())
+    if args.project == 'mesa':
+      args.build_dir = 'out'
+      build_dir = path.join(args.dir, args.build_dir)
+      if path.exists(build_dir):
+        remove(build_dir)
+      if args.pack:
+        args.prefix = args.pack
+      elif args.zip:
+        args.prefix = path.join(args.dir, random_string(8))
+    else:
+      args.build_type = build_type
+      args.build_dir = path.join('out', build_type.title())
+
     if args.project == 'chrome':
       build_chrome(args)
     elif args.project == 'aquarium':
       build_aquarium(args)
+    elif args.project == 'mesa':
+      build_mesa(args)
   
   if args.pack or args.zip:
     if args.project == 'chrome':
       pack_chrome(args)
     elif args.project == 'aquarium':
       pack_aquarium(args)
+    elif args.project == 'mesa':
+      pack_mesa(args)
 
   return 0
 

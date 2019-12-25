@@ -138,8 +138,9 @@ def generate_webgl_arguments(args):
                  '--retry-only-retry-on-failure-tests']
 
   # Browser arguments
-  browser_args = ['--enable-logging=stderr',
-                  '--disable-backgrounding-occluded-windows']
+  browser_args = ['--disable-backgrounding-occluded-windows']
+  if not is_win():
+    browser_args.append('--enable-logging=stderr')
   config = read_json(TRY_JOB_CONFIG)
   key = '%s_%s' % (args.target.replace('webgl2', 'webgl'), args.backend)
   browser_args.extend(config['try_job_browser_args'][key])
