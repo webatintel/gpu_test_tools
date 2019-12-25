@@ -22,7 +22,7 @@ from email.mime.text import MIMEText
 from os import path
 from subprocess import CalledProcessError
 
-PYTHON_CMD = 'python'
+PYTHON_CMD = 'vpython'
 EMAIL_SENDER = 'gpu_test@wp-40.sh.intel.com'
 SMTP_SERVER = '10.239.47.74'
 
