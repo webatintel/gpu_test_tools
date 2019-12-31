@@ -216,6 +216,8 @@ def build_aquarium(args):
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
+  if is_linux():
+    build_args['dawn_enable_opengl'] = 'false'
   arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)],
                   dir=args.dir)
