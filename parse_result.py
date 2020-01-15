@@ -12,6 +12,7 @@ PATTERN_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
 PATTERN_RESULT_SKIP = r'^\d+ test(s?) not run:$'
 PATTERN_CASE_PASS = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_CASE_ERROR = r'^(.+) \(.+:\d+\)$'
+PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -35,7 +36,6 @@ def parse_arguments():
 class AquariumResult(object):
   def __init__(self, name):
     self.name = name
-    self.fps_list = []
     self.average_fps = None
 
 
@@ -179,17 +179,11 @@ def parse_aquarium_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   is_data_line = False
   for line in read_line(result_file):
-    if is_data_line:
+    match = re_match(PATTERN_AVERAGE_FPS, line)
+    if match:
       test_result = AquariumResult(result_name)
-      fps_sum = 0
-      for item in line.split(';'):
-        if item:
-          test_result.fps_list.append(int(item))
-          fps_sum += int(item)
-      test_result.average_fps = fps_sum / len(test_result.fps_list)
+      test_result.average_fps = int(match.group(1))
       return test_result
-    elif line == 'Print FPS Data:':
-      is_data_line = True
 
 
 def merge_shard_result(test_suites):
@@ -302,7 +296,7 @@ def dump_aquarium_result(args):
     file_name = path.basename(item)
     if file_name.startswith('aquarium') and file_name.endswith('.log'):
       test_result = parse_aquarium_result_file(item)
-      if test_result:
+      if test_result and test_result.average_fps > 0:
         test_results.append(test_result)
   if not test_results:
     return

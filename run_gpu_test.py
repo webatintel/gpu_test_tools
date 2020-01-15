@@ -10,8 +10,7 @@ ANGLE_END_TEST_CMD = 'angle_end2end_tests'
 ANGLE_PERF_TEST_CMD = 'angle_perftests'
 AQUARIUM_TEST_CMD = 'aquarium'
 
-AQUARIUM_TEST_TIME = 60
-AQUARIUM_FPS_FREQUENCY = 10
+AQUARIUM_TEST_TIME = 30
 AQUARIUM_NUM_FISH = 30000
 
 BROWSER_TEST_SCRIPT = path.join('testing', 'scripts',
@@ -203,11 +202,12 @@ def generate_angle_arguments(args):
 
 def generate_aquarium_arguments(args):
   total_args = ['--enable-msaa',
-                '--enable-full-screen-mode',
-                '--turn-off-vsync']
+                '--window-size=1920,1080',
+                '--turn-off-vsync',
+                '--print-log',
+                '--integrated-gpu']
   total_args.extend(['--backend', args.backend])
   total_args.extend(['--test-time', str(AQUARIUM_TEST_TIME)])
-  total_args.extend(['--record-fps-frequency', str(AQUARIUM_FPS_FREQUENCY)])
   total_args.extend(['--num-fish', str(AQUARIUM_NUM_FISH)])
   return total_args
 

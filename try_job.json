@@ -81,14 +81,14 @@
     "webgl2": 20,
     "angle_end2end" : 4
   },
-  "aquarium_reference": {
+  "aquarium_average_fps": {
     "win": {
-      "d3d12": 35,
-      "dawn_d3d12": 40,
-      "dawn_vulkan": 40
+      "d3d12": 32,
+      "dawn_d3d12": 38,
+      "dawn_vulkan": 39
     },
     "linux": {
-      "dawn_vulkan": 40
+      "dawn_vulkan": 33
     }
   }
 }

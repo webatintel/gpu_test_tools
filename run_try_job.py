@@ -49,7 +49,7 @@ def parse_arguments():
   # Load configuration
   config = read_json(TRY_JOB_CONFIG)
   args.report_receivers = config['report_receivers']
-  args.aquarium_reference = config['aquarium_reference']
+  args.aquarium_average_fps = config['aquarium_average_fps']
 
   if is_win():
     args.try_jobs = config['win_jobs']
@@ -71,7 +71,7 @@ def update_aquarium_report(args, report):
     match = re_match(r'^aquarium_(.+)_test\s+(\d+)$', lines[i])
     if match:
       key, value = match.group(1), int(match.group(2))
-      reference_value = args.aquarium_reference[get_osname()][key]
+      reference_value = args.aquarium_average_fps[get_osname()][key]
       bias = int(float(value - reference_value) * 100 / reference_value)
       lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
       if abs(bias) > abs(max_bias):
