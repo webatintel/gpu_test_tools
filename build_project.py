@@ -8,22 +8,13 @@ from os import path
 
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
-CHROME_REMOTE_NAME = 'origin'
-CHROME_REMOTE_BRANCH = 'master'
-
-AQUARIUM_REMOTE_NAME = 'origin'
-AQUARIUM_REMOTE_BRANCH = 'master'
-
-DAWN_REMOTE_NAME = 'origin'
-DAWN_REMOTE_BRANCH = 'master'
-
-MESA_REMOTE_NAME = 'origin'
-MESA_REMOTE_BRANCH = 'master'
-
 CHROME_BUILD_TARGETS = [
   'chrome',
   'angle_end2end_tests',
   'angle_perftests',
+  'content_shell',
+  'gpu_unittests',
+  'trace_processor_shell',
 ]
 
 AQUARIUM_BUILD_TARGETS = [
@@ -36,16 +27,28 @@ CHROME_TARGET_DEPENDENCIES = {
     'angle_end2end_tests.exe.pdb',
     'angle_perftests.exe',
     'angle_perftests.exe.pdb',
+    'content_shell.exe',
+    'content_shell.exe.pdb',
+    'gpu_unittests.exe',
+    'gpu_unittests.exe.pdb',
+    'trace_processor_shell.exe',
+    'trace_processor_shell.exe.pdb',
     'angle_util.dll',
   ],
   'linux': [
     'angle_end2end_tests',
     'angle_perftests',
+    'content_shell',
+    'gpu_unittests',
+    'trace_processor_shell',
     'libangle_util.so',
   ],
   'mac': [
     'angle_end2end_tests',
     'angle_perftests',
+    'content_shell',
+    'gpu_unittests',
+    'trace_processor_shell',
     'libangle_util.dylib',
   ],
 }
@@ -112,9 +115,9 @@ def parse_arguments():
 
 
 def update_chrome(args):
-  execute_command(['git', 'fetch', CHROME_REMOTE_NAME],
+  execute_command(['git', 'fetch', 'origin'],
                   dir=args.dir)
-  execute_command(['git', 'rebase', CHROME_REMOTE_NAME + '/' + CHROME_REMOTE_BRANCH],
+  execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dir)
 
 
@@ -191,9 +194,9 @@ def pack_chrome(args):
 
 
 def update_aquarium(args):
-  execute_command(['git', 'fetch', AQUARIUM_REMOTE_NAME],
+  execute_command(['git', 'fetch', 'origin'],
                   dir=args.dir)
-  execute_command(['git', 'rebase', AQUARIUM_REMOTE_NAME + '/' + AQUARIUM_REMOTE_BRANCH],
+  execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dir)
 
 
@@ -204,9 +207,9 @@ def sync_aquarium(args):
                   dir=args.dir)
   execute_command(['git', 'checkout', 'upstream'],
                   dir=args.dawn_dir)
-  execute_command(['git', 'fetch', DAWN_REMOTE_NAME],
+  execute_command(['git', 'fetch', 'origin'],
                   dir=args.dawn_dir)
-  execute_command(['git', 'rebase', DAWN_REMOTE_NAME + '/' + DAWN_REMOTE_BRANCH],
+  execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dawn_dir)
 
 
@@ -255,9 +258,9 @@ def pack_aquarium(args):
 
 
 def update_mesa(args):
-  execute_command(['git', 'fetch', MESA_REMOTE_NAME],
+  execute_command(['git', 'fetch', 'origin'],
                   dir=args.dir)
-  execute_command(['git', 'rebase', MESA_REMOTE_NAME + '/' + MESA_REMOTE_BRANCH],
+  execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dir)
 
 

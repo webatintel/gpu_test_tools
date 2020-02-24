@@ -202,10 +202,12 @@ def execute_command(cmd,
                     dir=None, env=None):
   log_lines = []
   log_file = None
-  is_progress_command = cmd[0].find('ninja') >= 0
-  if is_progress_command:
-    progress_percent = 0
-    start_time = datetime.datetime.now()
+  is_ninja_command = cmd[0].find('ninja') >= 0
+  if is_ninja_command:
+    start_time = get_currenttime()
+    last_progress = 0
+    last_progress_time = start_time
+    progress_times = []
 
   try:
     if print_log:
@@ -225,29 +227,35 @@ def execute_command(cmd,
         continue
 
       # Generate progress bar
-      if is_progress_command:
+      if print_log and is_ninja_command:
         match = re_match(PATTERN_NINJA, line)
         if match:
-          if print_log:
-            n = int(match.group(1)) * 100 / int(match.group(2))
-            if n > progress_percent:
-              progress_percent = n
-              line = '['
-              for i in range(0, progress_percent/2):
-                line += '='
-              line += '>'
-              for i in range(progress_percent/2, 50):
-                line += ' '
-              line += '] %d%%' % progress_percent
-              sys.stdout.write('\r' + line)
-              time_duration = datetime.datetime.now() - start_time
-              if progress_percent == 100:
-                progress_percent = 0
-                sys.stdout.write('    Total time: %d Minutes\n' % (time_duration.total_seconds() / 60))
-              else:
-                time_estimation = time_duration.total_seconds() * (100 - progress_percent) / progress_percent
-                sys.stdout.write('    Time remaining: %d Minutes' % (time_estimation / 60))
-              sys.stdout.flush()
+          progress = int(match.group(1)) * 100 / int(match.group(2))
+          if progress > last_progress:
+            line = '['
+            for i in range(0, progress/2):
+              line += '='
+            line += '>'
+            for i in range(progress/2, 50):
+              line += ' '
+            line += '] %d%%' % progress
+            sys.stdout.write('\r' + line)
+
+            current_time = get_currenttime()
+            total_time = current_time - start_time
+            sys.stdout.write('    Total time: %dmin' % (total_time.total_seconds() / 60))
+            if progress == 100:
+              sys.stdout.write('\n')
+            else:
+              time_interval = current_time - last_progress_time
+              progress_times.append(time_interval.total_seconds() / (progress - last_progress))
+              if len(progress_times) > 10:
+                progress_times.pop(0)
+              time_remaning =  sum(progress_times) / len(progress_times) * (100 - progress)
+              sys.stdout.write('    Time remaining: %dmin' % (time_remaning / 60))
+              last_progress = progress
+              last_progress_time = current_time
+            sys.stdout.flush()
           continue
 
       # Output log
