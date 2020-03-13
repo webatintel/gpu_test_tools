@@ -4,6 +4,7 @@ import datetime
 import os
 import subprocess
 import sys
+import time
 
 def execute_command(cmd, dir=None):
   process = subprocess.Popen(cmd, shell=(sys.platform == 'win32'), cwd=dir)
@@ -16,8 +17,13 @@ def main():
   workspace_dir = os.path.abspath(os.path.join(file_dir, '..', '..'))
   gpu_test_dir = os.path.join(workspace_dir, 'gpu_test')
   project_dir = os.path.join(workspace_dir, 'project')
+  test_date = None
 
   while True:
+    while test_date and test_date == datetime.date.today():
+      time.sleep(300)
+    test_date = datetime.date.today()
+
     execute_command(['git', 'fetch', 'origin'], file_dir)
     execute_command(['git', 'rebase', 'origin/master'], file_dir)
 
