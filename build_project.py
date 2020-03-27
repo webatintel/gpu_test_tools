@@ -14,6 +14,7 @@ CHROME_BUILD_TARGETS = [
   'angle_perftests',
   'content_shell',
   'gpu_unittests',
+  'gl_tests',
   'trace_processor_shell',
 ]
 
@@ -31,6 +32,8 @@ CHROME_TARGET_DEPENDENCIES = {
     'content_shell.exe.pdb',
     'gpu_unittests.exe',
     'gpu_unittests.exe.pdb',
+    'gl_tests.exe',
+    'gl_tests.exe.pdb',
     'trace_processor_shell.exe',
     'trace_processor_shell.exe.pdb',
     'angle_util.dll',
@@ -40,6 +43,7 @@ CHROME_TARGET_DEPENDENCIES = {
     'angle_perftests',
     'content_shell',
     'gpu_unittests',
+    'gl_tests',
     'trace_processor_shell',
     'libangle_util.so',
   ],
@@ -48,6 +52,7 @@ CHROME_TARGET_DEPENDENCIES = {
     'angle_perftests',
     'content_shell',
     'gpu_unittests',
+    'gl_tests',
     'trace_processor_shell',
     'libangle_util.dylib',
   ],
@@ -70,6 +75,9 @@ AQUARIUM_ASSETS = [
   'assets',
   'shaders',
 ]
+
+PATTERN_COMMIT = r'^commit (\w+)$'
+PATTERN_DAWN_REVISION = r'  \'dawn_revision\': \'\w+\''
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -194,6 +202,8 @@ def pack_chrome(args):
 
 
 def update_aquarium(args):
+  execute_command(['git', 'checkout', '.'],
+                  dir=args.dir)
   execute_command(['git', 'fetch', 'origin'],
                   dir=args.dir)
   execute_command(['git', 'rebase', 'origin/master'],
@@ -201,16 +211,34 @@ def update_aquarium(args):
 
 
 def sync_aquarium(args):
-  execute_command(['git', 'checkout', 'master'],
-                  dir=args.dawn_dir)
-  execute_command(['gclient', 'sync', '-D'],
-                  dir=args.dir)
-  execute_command(['git', 'checkout', 'upstream'],
-                  dir=args.dawn_dir)
   execute_command(['git', 'fetch', 'origin'],
                   dir=args.dawn_dir)
   execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dawn_dir)
+  log = execute_command(['git', 'log', '-1'], print_log=False, return_log=True,
+                        dir=args.dawn_dir)
+  dawn_revision = None
+  for line in log.splitlines():
+    match = re_match(PATTERN_COMMIT, line)
+    if match:
+      dawn_revision = match.group(1)
+      break
+  if not dawn_revision:
+    raise Exception('Unknown dawn revision')
+
+  deps_file = path.join(args.dir, 'DEPS')
+  deps_contents = []
+  for line in read_line(deps_file):
+    line = line.rstrip()
+    match = re_match(PATTERN_DAWN_REVISION, line)
+    if match:
+      deps_contents.append('  \'dawn_revision\': \'' + dawn_revision + '\',')
+    else:
+      deps_contents.append(line)
+  write_file(deps_file, '\n'.join(deps_contents))
+
+  execute_command(['gclient', 'sync', '-D'],
+                  dir=args.dir)
 
 
 def build_aquarium(args):

@@ -142,7 +142,7 @@ def read_line(file_name):
       line = f.readline()
       if not line:
         break
-      yield line.strip()
+      yield line
 
 def read_file(file_name):
   try:

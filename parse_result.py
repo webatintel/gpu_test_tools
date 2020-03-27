@@ -136,6 +136,7 @@ def parse_angle_result_file(result_file):
   test_suite = TestSuite(result_name)
   error_result = ''
   for line in read_line(result_file):
+    line = line.strip()
     if error_result:
       match = re_match(PATTERN_CASE_ERROR, line)
       if match:
@@ -179,6 +180,7 @@ def parse_aquarium_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   is_data_line = False
   for line in read_line(result_file):
+    line = line.strip()
     match = re_match(PATTERN_AVERAGE_FPS, line)
     if match:
       test_result = AquariumResult(result_name)
