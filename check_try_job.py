@@ -6,7 +6,8 @@ import sys
 from util.base_util import *
 from os import path
 
-OFFICIAL_TRY_JOB = path.join('testing', 'buildbot', 'chromium.gpu.fyi.json')
+OFFICIAL_TRY_BOTS = [ path.join('testing', 'buildbot', 'chromium.gpu.json'),
+                      path.join('testing', 'buildbot', 'chromium.gpu.fyi.json') ]
 TRY_JOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'try_job.json')
 
 def parse_arguments():
@@ -83,7 +84,7 @@ def find_telemetry_tests(test_list):
   return job_list
 
 
-def find_bot(bot_file):
+def find_intel_bot(bot_file):
   bot_list = []
   bot_dict = read_json(bot_file)
   for key,value in bot_dict.iteritems():
@@ -120,17 +121,21 @@ def find_bot(bot_file):
 
 def main():
   args = parse_arguments()
-  bot_list = find_bot(os.path.join(args.dir, OFFICIAL_TRY_JOB))
-  if not bot_list:
-    title = 'Failed to parse official try job'
-    print(title)
+  config = read_json(TRY_JOB_CONFIG)
+
+  def handle_error(error):
+    print(error)
     if args.email:
-      send_email(config['report_receivers']['admin'], title)
-    return 0
+      send_email(config['report_receivers']['admin'], error)
+
+  bot_list = []
+  for try_bot in OFFICIAL_TRY_BOTS:
+    bot_list.extend(find_intel_bot(os.path.join(args.dir, try_bot)))
+  if not bot_list:
+    handle_error('Failed to find intel try bot')
 
   win_jobs = {}
   linux_jobs = {}
-  config = read_json(TRY_JOB_CONFIG)
   for bot in bot_list:
     for job in bot.try_jobs:
       if bot.platform == 'win':
@@ -150,25 +155,17 @@ def main():
           job.browser_args.sort()
           config['try_job_browser_args'][name].sort()
           if job.browser_args != config['try_job_browser_args'][name]:
-            title = 'Try job\'s browser arguments mismatched'
-            body = job.name + '\n' + ' '.join(job.browser_args)
-            print(title + ': ' + body)
-            if args.email:
-              send_email(config['report_receivers']['admin'], title, body)
+            handle_error('Try job arguments mismatched: ' + job.name)
+        else:
+          handle_error('Missing try job arguments: ' + name)
 
   for key, value in win_jobs.items():
     if not key in config['win_jobs']:
-      title = 'Missing try job on Windows'
-      print(title + ': ' + key)
-      if args.email:
-        send_email(config['report_receivers']['admin'], title, key)
+      handle_error('Missing try job on Windows: ' + key)
 
   for key, value in linux_jobs.items():
     if not key in config['linux_jobs']:
-      title = 'Missing try job on Linux'
-      print(title + ': ' + key)
-      if args.email:
-        send_email(config['report_receivers']['admin'], title, key)
+      handle_error('Missing try job on Linux: ' + key)
 
   return 0
 

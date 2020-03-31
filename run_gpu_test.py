@@ -131,9 +131,8 @@ def parse_arguments():
 
 def generate_webgl_arguments(args):
   # Common arguments
-  common_args = ['--show-stdout',
+  common_args = ['--show-stdout', '--passthrough', '-v',
                  '--browser=' + args.type,
-                 '--passthrough', '-v',
                  '--retry-only-retry-on-failure-tests']
 
   # Browser arguments
@@ -187,15 +186,15 @@ def generate_fyi_arguments(args):
 def generate_angle_arguments(args):
   if args.backend == 'end2end':
     total_args = ['--use-gpu-in-tests',
-                  '--test-launcher-retry-limit=0']
+                  '--test-launcher-retry-limit=0'
+                  '--test-launcher-batch-limit=256']
+    if is_linux():
+      total_args.append('--no-xvfb')
     if args.filter:
       total_args.append('--gtest_filter=' + args.filter)
   elif args.backend == 'perf':
-    total_args = ['--verbose', '-v',
-                  '--test-launcher-print-test-stdio=always',
-                  '--test-launcher-jobs=1',
-                  '--test-launcher-retry-limit=0',
-                  '--one-frame-only']
+    total_args = ['-v', '--one-frame-only',
+                  '--gtest-benchmark-name=angle_perftests']
 
   return total_args
 
