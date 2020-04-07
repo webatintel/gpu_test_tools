@@ -121,6 +121,9 @@ def update_test_report(args, target, report):
   header = 'Location: %s\n' % os.getcwd()
   if args.chrome_revision:
     header += 'Revision: %s\n' % args.chrome_revision
+  driver_version = get_gpu_driver_version()
+  if driver_version:
+    header += 'Driver Version: %s\n' % driver_version
   return title, header + report
 
 

@@ -2,8 +2,14 @@
 
 from base_util import *
 from os import path
+try:
+  from _winreg import *
+except ImportError:
+  pass
 
 PATTERN_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
+PATTERN_GL_VERSION = r'^OpenGL core profile version string: \d\.\d \(Core Profile\) Mesa ([\d\.]+).*$'
+SYSTEM_CLASS_KEY_ROOT = 'SYSTEM\CurrentControlSet\Control\Class'
 
 def get_chrome_revision(chrome_dir, back_level=0):
   try:
@@ -18,6 +24,7 @@ def get_chrome_revision(chrome_dir, back_level=0):
     pass
   return ''
 
+
 def get_aquarium_revision(aquarium_dir):
   try:
     aquarium_revision = execute_command(['git', 'rev-parse', 'HEAD'],
@@ -31,3 +38,27 @@ def get_aquarium_revision(aquarium_dir):
   except CalledProcessError:
     pass
   return ''
+
+
+def get_gpu_driver_version():
+  if is_win():
+    with OpenKey(HKEY_LOCAL_MACHINE, SYSTEM_CLASS_KEY_ROOT) as class_key_root:
+      for i in range(0, QueryInfoKey(class_key_root)[0]):
+        with OpenKey(class_key_root, EnumKey(class_key_root, i)) as class_key:
+          for j in range(0, QueryInfoKey(class_key)[0]):
+            try:
+              with OpenKey(class_key, EnumKey(class_key, j)) as sub_key:
+                driver_desc, _ = QueryValueEx(sub_key, 'DriverDesc')
+                if ('Intel(R)' in driver_desc and 'Graphics' in driver_desc
+                    and not 'Control Panel' in driver_desc
+                    and not 'Command Center' in driver_desc):
+                  driver_version, _ = QueryValueEx(sub_key, 'DriverVersion')
+                  return driver_version
+            except WindowsError:
+              pass
+  elif is_linux():
+    ret = execute_command(['glxinfo'], print_log=False, return_log=True)
+    for line in ret.splitlines():
+      match = re_match(PATTERN_GL_VERSION, line.strip())
+      if match:
+        return match.group(1)
