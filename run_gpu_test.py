@@ -67,8 +67,6 @@ def parse_arguments():
       help='Chrome/Aquarium directory.\n\n')
   parser.add_argument('--log', '-l', action='store_true',
       help='Print full test logs when test is running.\n\n')
-  parser.add_argument('--iris', action='store_true',
-      help='Enable Iris driver. (Only available on Ubuntu/Mesa environment)\n\n')
   parser.add_argument('--filter', '-f',
       help='Keywords to match the test cases. Devide with |.\n\n')
   parser.add_argument('--repeat', '-r', default=1, type=int,
@@ -212,10 +210,6 @@ def generate_aquarium_arguments(args):
 
 
 def execute_shard(cmd, args):
-  env = get_env()
-  if args.iris:
-    env['MESA_LOADER_DRIVER_OVERRIDE'] = 'iris'
-
   log_name, log_ext = path.splitext(args.log_file)
   result_name, result_ext = path.splitext(args.result_file)
   shard_postfix = ''
@@ -234,7 +228,7 @@ def execute_shard(cmd, args):
     if args.target.startswith('webgl') or args.target == 'fyi':
       new_cmd.append('--isolated-script-test-output=' + result_file)
     try:
-      execute_command(new_cmd, print_log=args.log, return_log=False, save_log=log_file, env=env)
+      execute_command(new_cmd, print_log=args.log, return_log=False, save_log=log_file)
     except CalledProcessError:
       pass
 

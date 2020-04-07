@@ -102,8 +102,6 @@ def parse_arguments():
       help='Package the binaries to a directory after building.\n\n')
   parser.add_argument('--zip', '-z',
       help='Package the binaries to a zip file after building.\n\n')
-  parser.add_argument('--iris', action='store_true',
-      help='Build Iris driver.\n\n')
   args = parser.parse_args()
 
   if not isinstance(args.type, list):
@@ -299,7 +297,7 @@ def build_mesa(args):
   build_args['platforms'] = 'x11,drm'
   build_args['dri-drivers'] = 'i915,i965'
   build_args['vulkan-drivers'] = 'intel'
-  build_args['gallium-drivers'] = 'iris' if args.iris else ''
+  build_args['gallium-drivers'] = 'iris'
   build_args['dri3'] = 'true'
   build_args['gles1'] = 'true'
   build_args['gles2'] = 'true'
@@ -351,6 +349,8 @@ def main():
         args.prefix = args.pack
       elif args.zip:
         args.prefix = path.join(args.dir, random_string(8))
+      else:
+        args.prefix = ''
     else:
       args.build_type = build_type
       args.build_dir = path.join('out', build_type.title())

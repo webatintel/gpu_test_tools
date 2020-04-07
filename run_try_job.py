@@ -34,8 +34,6 @@ def parse_arguments():
            '--build will be enabled automatically\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
-  parser.add_argument('--iris', action='store_true',
-      help='Enable Iris driver. (Only available on Linux)\n\n')
   args = parser.parse_args()
 
   if args.chrome_dir:
@@ -192,9 +190,6 @@ def main():
       if args.try_job_shards.has_key(key):
         cmd.extend(['--shard', str(args.try_job_shards[key])])
         break
-
-    if target.startswith('webgl') and args.iris:
-      cmd.append('--iris')
 
     try:
       execute_command(cmd, return_log=True)
