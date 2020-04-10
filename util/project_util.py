@@ -9,6 +9,7 @@ except ImportError:
 
 PATTERN_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
 PATTERN_GL_VERSION = r'^OpenGL core profile version string: \d\.\d \(Core Profile\) Mesa ([\d\.]+).*$'
+PATTERN_GL_RENDER = r'^OpenGL renderer string: Mesa (.+) \(.+\)$'
 SYSTEM_CLASS_KEY_ROOT = 'SYSTEM\CurrentControlSet\Control\Class'
 
 def get_chrome_revision(chrome_dir, back_level=0):
@@ -40,7 +41,7 @@ def get_aquarium_revision(aquarium_dir):
   return ''
 
 
-def get_gpu_driver_version():
+def get_gpu_info():
   if is_win():
     with OpenKey(HKEY_LOCAL_MACHINE, SYSTEM_CLASS_KEY_ROOT) as class_key_root:
       for i in range(0, QueryInfoKey(class_key_root)[0]):
@@ -53,12 +54,21 @@ def get_gpu_driver_version():
                     and not 'Control Panel' in driver_desc
                     and not 'Command Center' in driver_desc):
                   driver_version, _ = QueryValueEx(sub_key, 'DriverVersion')
-                  return driver_version
+                  return driver_desc, driver_version
             except WindowsError:
               pass
   elif is_linux():
+    gpu = None
     ret = execute_command(['glxinfo'], print_log=False, return_log=True)
     for line in ret.splitlines():
-      match = re_match(PATTERN_GL_VERSION, line.strip())
+      line = line.strip()
+      match = re_match(PATTERN_GL_RENDER, line)
       if match:
-        return match.group(1)
+        gpu = match.group(1)
+        continue
+
+      match = re_match(PATTERN_GL_VERSION, line)
+      if match:
+        return gpu, match.group(1)
+
+  return None, None

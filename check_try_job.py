@@ -54,7 +54,8 @@ def find_gtest_tests(test_list):
   job_list = []
   for test in test_list:
     name = test['test']
-    if name == 'angle_end2end_tests':
+    if (name == 'angle_end2end_tests' or name == 'angle_perf_tests'
+        or name == 'gl_tests' or name == 'vulkan_tests'):
       job = TryJob(name)
       job.args = test['args']
       if test.has_key('swarming') and test['swarming'].has_key('shards'):

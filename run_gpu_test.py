@@ -8,6 +8,8 @@ from os import path
 
 ANGLE_END_TEST_CMD = 'angle_end2end_tests'
 ANGLE_PERF_TEST_CMD = 'angle_perftests'
+GL_TEST_CMD = 'gl_tests'
+VULKAN_TEST_CMD = 'vulkan_tests'
 AQUARIUM_TEST_CMD = 'aquarium'
 
 AQUARIUM_TEST_TIME = 30
@@ -29,18 +31,15 @@ def parse_arguments():
       description='GPU test tools\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('target',
-      choices=['webgl', 'webgl2', 'angle', 'fyi', 'aquarium'],
+      choices=['webgl', 'webgl2', 'gtest', 'aquarium'],
       help='Specify the test you want to run.\n\n'\
            'webgl    :  WebGL conformance tests\n'\
            'webgl2   :  WebGL2 conformance tests\n'\
-           'angle    :  ANGLE tests\n'\
-           'fyi      :  Miscellaneous less important tests\n'\
+           'gtest    :  gtest suites\n'\
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--backend', '-b',
       choices=['passthrough', 'validating', 'gl', 'vulkan', 'd3d9',
-               'end2end', 'perf',
-               'pixel',
-               'd3d12', 'dawn_d3d12', 'dawn_vulkan'],
+               'end2end', 'perf', 'd3d12', 'dawn_d3d12', 'dawn_vulkan'],
       help='Specify the backend. Not all targets are supporting all backends.\n'\
            'Run default tests if the backend is not specified.\n'\
            '\n[WebGL/WebGL2]\n'\
@@ -49,11 +48,11 @@ def parse_arguments():
            'gl          : opengl passthrough\n'\
            'vulkan      : vulkan passthrough\n'\
            'd3d9        : d3d9   passthrough\n'\
-           '\n[ANGLE]\n'\
-           'end2end : end2end test (default)\n'\
-           'perf    : performance test\n'\
-           '\n[FYI]\n'\
-           'pixel : pixel skia gold test\n'\
+           '\n[gtest]\n'\
+           'end2end : angle_end2end_tests (default)\n'\
+           'perf    : angle_perf_tests\n'\
+           'gl      : gl_tests\n'\
+           'vulkan  : vulkan_tests\n'\
            '\n[Aquarium]\n'\
            'dawn_vulkan : dawn vulkan (default)\n'\
            'dawn_d3d12  : dawn d3d12\n'\
@@ -87,15 +86,11 @@ def parse_arguments():
     if (args.backend != 'passthrough' and args.backend != 'validating'
         and args.backend != 'gl' and args.backend != 'vulkan' and args.backend != 'd3d9'):
       raise Exception('Unsupported backend: ' + args.backend)
-  elif args.target == 'angle':
+  elif args.target == 'gtest':
     if not args.backend:
       args.backend = 'end2end'
-    if args.backend != 'end2end' and args.backend != 'perf':
-      raise Exception('Unsupported backend: ' + args.backend)
-  elif args.target == 'fyi':
-    if not args.backend:
-      args.backend = 'pixel'
-    if args.backend != 'pixel':
+    if (args.backend != 'end2end' and args.backend != 'perf'
+        and args.backend != 'gl' and args.backend != 'vulkan'):
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'aquarium':
     if not args.backend:
@@ -103,10 +98,10 @@ def parse_arguments():
     if not args.backend.startswith('dawn_') and args.backend != 'd3d12':
       raise Exception('Unsupported backend: ' + args.backend)
 
-  if args.shard > 1 and (not args.target.startswith('webgl') and args.target != 'angle'):
+  if args.shard > 1 and (not args.target.startswith('webgl') and args.target != 'gtest'):
     raise Exception('Do not support shard for ' + args.target)
 
-  if args.filter and (not args.target.startswith('webgl') and args.target != 'angle' and args.target != 'fyi'):
+  if args.filter and (not args.target.startswith('webgl') and args.target != 'gtest'):
     raise Exception('Do not support filter for ' + args.target)
 
   if args.shard > 1 and args.filter:
@@ -165,35 +160,22 @@ def generate_webgl_arguments(args):
   return total_args
 
 
-def generate_fyi_arguments(args):
-  if args.backend == 'pixel':
-    common_args = ['--show-stdout',
-                   '--browser=' + args.type,
-                   '--passthrough', '-v',
-                   '--dont-restore-color-profile-after-test']
-    browser_args = ['--js-flags=--expose-gc']
-
+def generate_gtest_arguments(args):
   total_args = []
-  total_args.extend(common_args)
-  total_args.append('--extra-browser-args=' + ' '.join(browser_args))
-  if args.filter:
-    total_args.append('--test-filter=' + args.filter)
-  return total_args
+  if args.backend == 'perf':
+    total_args.extend(['-v', '--one-frame-only',
+                       '--gtest-benchmark-name=angle_perftests'])
+  else:
+    total_args.append('--use-gpu-in-tests')
 
-
-def generate_angle_arguments(args):
   if args.backend == 'end2end':
-    total_args = ['--use-gpu-in-tests',
-                  '--test-launcher-retry-limit=0'
-                  '--test-launcher-batch-limit=256']
+    total_args.extend(['--test-launcher-retry-limit=0',
+                       '--test-launcher-batch-limit=256'])
     if is_linux():
       total_args.append('--no-xvfb')
-    if args.filter:
-      total_args.append('--gtest_filter=' + args.filter)
-  elif args.backend == 'perf':
-    total_args = ['-v', '--one-frame-only',
-                  '--gtest-benchmark-name=angle_perftests']
 
+  if args.filter:
+    total_args.append('--gtest_filter=' + args.filter)
   return total_args
 
 
@@ -225,7 +207,7 @@ def execute_shard(cmd, args):
     print(log_name + postfix)
 
     new_cmd = cmd[:]
-    if args.target.startswith('webgl') or args.target == 'fyi':
+    if args.target.startswith('webgl'):
       new_cmd.append('--isolated-script-test-output=' + result_file)
     try:
       execute_command(new_cmd, print_log=args.log, return_log=False, save_log=log_file)
@@ -244,23 +226,18 @@ def main():
     cmd.extend(generate_webgl_arguments(args))
     total_shards = '--total-shards'
     shard_index = '--shard-index'
-  elif args.target == 'angle':
+  elif args.target == 'gtest':
     if args.backend == 'end2end':
       cmd = [path.join(args.dir, args.build_dir, ANGLE_END_TEST_CMD)]
     elif args.backend == 'perf':
       cmd = [path.join(args.dir, args.build_dir, ANGLE_PERF_TEST_CMD)]
-    cmd.extend(generate_angle_arguments(args))
+    elif args.backend == 'gl':
+      cmd = [path.join(args.dir, args.build_dir, GL_TEST_CMD)]
+    elif args.backend == 'vulkan':
+      cmd = [path.join(args.dir, args.build_dir, VULKAN_TEST_CMD)]
+    cmd.extend(generate_gtest_arguments(args))
     total_shards = '--test-launcher-total-shards'
     shard_index = '--test-launcher-shard-index'
-  elif args.target == 'fyi':
-    if args.backend == 'pixel':
-      cmd = [PYTHON_CMD,
-             path.join(args.dir, BROWSER_TEST_SCRIPT),
-             path.join(args.dir, GPU_TEST_SCRIPT),
-             'pixel']
-    cmd.extend(generate_fyi_arguments(args))
-    total_shards = '--total-shards'
-    shard_index = '--shard-index'
   elif args.target == 'aquarium':
     cmd = [path.join(args.dir, args.build_dir, AQUARIUM_TEST_CMD)]
     cmd.extend(generate_aquarium_arguments(args))

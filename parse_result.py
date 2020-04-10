@@ -10,8 +10,8 @@ PATTERN_RESULT_FAIL = r'^\d+ test(s?) failed:$'
 PATTERN_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
 PATTERN_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
 PATTERN_RESULT_SKIP = r'^\d+ test(s?) not run:$'
-PATTERN_CASE_PASS = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
-PATTERN_CASE_ERROR = r'^(.+) \(.+:\d+\)$'
+PATTERN_GTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
+PATTERN_GTEST_ERROR = r'^(.+) \(.+:\d+\)$'
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 def parse_arguments():
@@ -19,11 +19,10 @@ def parse_arguments():
       description='Parse test results and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('target', nargs='?',
-      choices=['webgl', 'angle', 'fyi', 'aquarium'], default='webgl',
+      choices=['webgl', 'gtest', 'aquarium'], default='webgl',
       help='Specify the test results you want to parse.\n\n'\
            'webgl    :  WebGL and WebGL2 conformance tests\n'\
-           'angle    :  ANGLE tests\n'\
-           'fyi      :  Miscellaneous less important tests\n'\
+           'gtest    :  gtest suites\n'\
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='The directory where the results locate in.\n\n')
@@ -131,18 +130,22 @@ def parse_telemetry_result_file(result_file):
   return test_suite
 
 
-def parse_angle_result_file(result_file):
+def parse_gtest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  test_suite = TestSuite(result_name)
+  name = result_name.replace('gtest_', '')
+  if name.startswith('end2end') or name.startswith('perf'):
+    name = 'angle_' + name
+  test_suite = TestSuite(name)
   error_result = ''
   for line in read_line(result_file):
     line = line.strip()
     if error_result:
-      match = re_match(PATTERN_CASE_ERROR, line)
+      match = re_match(PATTERN_GTEST_ERROR, line)
       if match:
         result = TestResult(match.group(1))
         if error_result == 'skip':
           result.is_skipped = True
+          result.result = None
         else:
           result.result = False
           if error_result == 'timeout':
@@ -156,7 +159,7 @@ def parse_angle_result_file(result_file):
             break
         continue
     else:
-      match = re_match(PATTERN_CASE_PASS, line)
+      match = re_match(PATTERN_GTEST_CASE, line)
       if match:
         result = TestResult(match.group(1))
         result.result = True
@@ -269,12 +272,12 @@ def dump_telemetry_result(args):
   return generate_test_report(test_suites, detailed_cases)
 
 
-def dump_angle_result(args):
+def dump_gtest_result(args):
   test_suites = []
   for item in list_file(args.dir):
     file_name = path.basename(item)
-    if file_name.startswith('angle') and file_name.endswith('.log'):
-      test_suite = parse_angle_result_file(item)
+    if file_name.startswith('gtest') and file_name.endswith('.log'):
+      test_suite = parse_gtest_result_file(item)
       if not test_suite.IsEmpty():
         test_suites.append(test_suite)
   if not test_suites:
@@ -313,10 +316,10 @@ def dump_aquarium_result(args):
 
 def main():
   args = parse_arguments()
-  if args.target == 'webgl' or args.target == 'fyi':
+  if args.target == 'webgl':
     report = dump_telemetry_result(args)
-  elif args.target == 'angle':
-    report = dump_angle_result(args)
+  elif args.target == 'gtest':
+    report = dump_gtest_result(args)
   elif args.target == 'aquarium':
     report = dump_aquarium_result(args)
 

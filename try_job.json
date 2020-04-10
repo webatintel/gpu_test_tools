@@ -7,12 +7,9 @@
       "lin.sun@intel.com",
       "yang.gu@intel.com"
     ],
-    "angle": [
+    "gtest": [
       "lin.sun@intel.com",
       "yang.gu@intel.com"
-    ],
-    "fyi": [
-      "lin.sun@intel.com"
     ],
     "aquarium": [
       "lin.sun@intel.com",
@@ -22,27 +19,31 @@
     ]
   },
   "win_jobs": [
-    "angle_perftests",
-    "angle_end2end_tests",
-    "webgl_conformance_vulkan_passthrough_tests",
-    "webgl2_conformance_gl_passthrough_tests",
-    "webgl_conformance_gl_passthrough_tests",
-    "webgl_conformance_tests",
-    "webgl2_conformance_tests",
-    "webgl_conformance_d3d9_passthrough_tests",
     "aquarium_d3d12_tests",
     "aquarium_dawn_d3d12_tests",
-    "aquarium_dawn_vulkan_tests"
-  ],
-  "linux_jobs": [
+    "aquarium_dawn_vulkan_tests",
     "angle_perftests",
     "angle_end2end_tests",
+    "gl_tests",
+    "vulkan_tests",
+    "webgl2_conformance_gl_passthrough_tests",
+    "webgl_conformance_gl_passthrough_tests",
+    "webgl2_conformance_tests",
+    "webgl_conformance_tests",
+    "webgl_conformance_d3d9_passthrough_tests",
+    "webgl_conformance_vulkan_passthrough_tests"
+  ],
+  "linux_jobs": [
+    "aquarium_dawn_vulkan_tests",
+    "angle_perftests",
+    "angle_end2end_tests",
+    "gl_tests",
+    "vulkan_tests",
     "webgl2_conformance_gl_passthrough_tests",
     "webgl_conformance_gl_passthrough_tests",
     "webgl2_conformance_validating_tests",
     "webgl_conformance_validating_tests",
-    "webgl_conformance_vulkan_passthrough_tests",
-    "aquarium_dawn_vulkan_tests"
+    "webgl_conformance_vulkan_passthrough_tests"
   ],
   "mac_jobs": [
     "webgl_conformance_tests",
@@ -57,9 +58,10 @@
     "webgl2_conformance_tests"                  : ["webgl2", "passthrough"],
     "webgl2_conformance_validating_tests"       : ["webgl2", "validating"],
     "webgl2_conformance_gl_passthrough_tests"   : ["webgl2", "gl"],
-    "angle_end2end_tests"                       : ["angle", "end2end"],
-    "angle_perftests"                           : ["angle", "perf"],
-    "pixel_skia_gold_test"                      : ["fyi", "pixel"],
+    "angle_end2end_tests"                       : ["gtest", "end2end"],
+    "angle_perftests"                           : ["gtest", "perf"],
+    "gl_tests"                                  : ["gtest", "gl"],
+    "vulkan_tests"                              : ["gtest", "vulkan"],
     "aquarium_d3d12_tests"                      : ["aquarium", "d3d12"],
     "aquarium_dawn_d3d12_tests"                 : ["aquarium", "dawn_d3d12"],
     "aquarium_dawn_vulkan_tests"                : ["aquarium", "dawn_vulkan"]
@@ -79,7 +81,7 @@
   "try_job_shards": {
     "webgl" : 2,
     "webgl2": 20,
-    "angle_end2end" : 4
+    "gtest_end2end" : 4
   },
   "aquarium_average_fps": {
     "win": {

@@ -112,18 +112,21 @@ def update_test_report(args, target, report):
   if not notice:
     notice = ' All Clear'
 
+  title = ''
   if target == 'webgl':
-    target = 'WebGL'
-  elif target == 'angle':
-    target = 'ANGLE'
-  title = '%s Test Report - %s / %s -%s' % (target, get_osname().title(), get_hostname(), notice)
+    title = 'WebGL Test'
+  elif target == 'gtest':
+    title = 'GTest'
+  title += ' Report - %s / %s -%s' % (get_osname().title(), get_hostname(), notice)
 
   header = 'Location: %s\n' % os.getcwd()
   if args.chrome_revision:
     header += 'Revision: %s\n' % args.chrome_revision
-  driver_version = get_gpu_driver_version()
+  gpu, driver_version = get_gpu_info()
+  if gpu:
+    header += 'GPU: %s\n' % gpu
   if driver_version:
-    header += 'Driver Version: %s\n' % driver_version
+    header += 'Driver: %s\n' % driver_version
   return title, header + report
 
 
@@ -213,7 +216,10 @@ def main():
         else:
           title, report = update_test_report(args, target, report)
         print('\n--------------------------------------------------\n%s\n\n%s' % (title, report))
-        write_file('%s_test_report.txt' % target, report)
+        name = target
+        if name != 'gtest':
+          name += '_test'
+        write_file(name + '_report.txt', report)
         if args.email:
           send_email(args.report_receivers[target], title, report)
     except CalledProcessError as e:
