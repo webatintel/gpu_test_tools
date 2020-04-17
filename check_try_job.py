@@ -54,8 +54,7 @@ def find_gtest_tests(test_list):
   job_list = []
   for test in test_list:
     name = test['test']
-    if (name == 'angle_end2end_tests' or name == 'angle_perf_tests'
-        or name == 'gl_tests' or name == 'vulkan_tests'):
+    if name in ['angle_end2end_tests', 'gl_tests', 'vulkan_tests']:
       job = TryJob(name)
       job.args = test['args']
       if test.has_key('swarming') and test['swarming'].has_key('shards'):
@@ -68,7 +67,8 @@ def find_telemetry_tests(test_list):
   job_list = []
   for test in test_list:
     name = test['name']
-    if name.find('webgl') >= 0 or name == 'angle_perftests':
+    if name.startswith('webgl') or name == 'angle_perftests':
+      name = name.replace('perftests', 'perf_tests')
       job = TryJob(name)
       for arg in test['args']:
         if arg.startswith('--extra-browser-args='):
@@ -151,7 +151,7 @@ def main():
         name = name.replace('_tests', '')
         name = name.replace('_passthrough', '')
         name = name.replace('conformance_', '')
-        name = name.replace('_conformance', '_passthrough')
+        name = name.replace('_conformance', '_d3d11')
         if config['try_job_browser_args'].has_key(name):
           job.browser_args.sort()
           config['try_job_browser_args'][name].sort()

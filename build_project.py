@@ -18,6 +18,11 @@ CHROME_BUILD_TARGETS = [
   'trace_processor_shell',
 ]
 
+DAWN_BUILD_TARGETS = [
+  'dawn_end2end_tests',
+  'dawn_perf_tests',
+]
+
 AQUARIUM_BUILD_TARGETS = [
   'aquarium',
 ]
@@ -46,15 +51,7 @@ CHROME_TARGET_DEPENDENCIES = {
     'content_shell',
     'trace_processor_shell',
     'libangle_util.so',
-  ],
-  'mac': [
-    'angle_end2end_tests',
-    'angle_perftests',
-    'gl_tests',
-    'vulkan_tests',
-    'content_shell',
-    'trace_processor_shell',
-    'libangle_util.dylib',
+    'libgles2_c_lib.so',
   ],
 }
 
@@ -64,9 +61,6 @@ AQUARIUM_TARGET_DEPENDENCIES = {
     'aquarium.exe.pdb',
   ],
   'linux':[
-    'aquarium',
-  ],
-  'mac':[
     'aquarium',
   ],
 }
@@ -84,7 +78,7 @@ def parse_arguments():
       description='Build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('project', nargs='?',
-      choices=['chrome', 'aquarium', 'mesa'], default='chrome',
+      choices=['chrome', 'dawn', 'aquarium', 'mesa'], default='chrome',
       help='Specify the project. Default is \'chrome\'.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Project source directory.\n\n')
@@ -115,8 +109,6 @@ def parse_arguments():
     args.pack = path.abspath(args.pack)
   if args.zip:
     args.zip = path.abspath(args.zip)
-  if args.project == 'aquarium':
-    args.dawn_dir = path.join(args.dir, 'third_party', 'dawn')
   return args
 
 
@@ -199,6 +191,32 @@ def pack_chrome(args):
     remove(pack_dir)
 
 
+def update_dawn(args):
+  execute_command(['git', 'fetch', 'origin'],
+                  dir=args.dir)
+  execute_command(['git', 'rebase', 'origin/master'],
+                  dir=args.dir)
+
+
+def sync_dawn(args):
+  execute_command(['gclient', 'sync', '-D'],
+                  dir=args.dir)
+
+
+def build_dawn(args):
+  build_args = {}
+  build_args['is_debug'] = 'false'
+
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
+
+  build_cmd = ['autoninja', '-C', args.build_dir]
+  for target in DAWN_BUILD_TARGETS:
+    cmd = build_cmd[:]
+    cmd.append(target)
+    execute_command(cmd, dir=args.dir)
+
+
 def update_aquarium(args):
   execute_command(['git', 'checkout', '.'],
                   dir=args.dir)
@@ -209,12 +227,13 @@ def update_aquarium(args):
 
 
 def sync_aquarium(args):
+  dawn_dir = path.join(args.dir, 'third_party', 'dawn')
   execute_command(['git', 'fetch', 'origin'],
-                  dir=args.dawn_dir)
+                  dir=dawn_dir)
   execute_command(['git', 'rebase', 'origin/master'],
-                  dir=args.dawn_dir)
+                  dir=dawn_dir)
   log = execute_command(['git', 'log', '-1'], print_log=False, return_log=True,
-                        dir=args.dawn_dir)
+                        dir=dawn_dir)
   dawn_revision = None
   for line in log.splitlines():
     match = re_match(PATTERN_COMMIT, line)
@@ -328,6 +347,8 @@ def main():
   if args.update:
     if args.project == 'chrome':
       update_chrome(args)
+    elif args.project == 'dawn':
+      update_dawn(args)
     elif args.project == 'aquarium':
       update_aquarium(args)
     elif args.project == 'mesa':
@@ -336,6 +357,8 @@ def main():
   if args.update or args.sync:
     if args.project == 'chrome':
       sync_chrome(args)
+    elif args.project == 'dawn':
+      sync_dawn(args)
     elif args.project == 'aquarium':
       sync_aquarium(args)
 
@@ -357,6 +380,8 @@ def main():
 
     if args.project == 'chrome':
       build_chrome(args)
+    elif args.project == 'dawn':
+      build_dawn(args)
     elif args.project == 'aquarium':
       build_aquarium(args)
     elif args.project == 'mesa':

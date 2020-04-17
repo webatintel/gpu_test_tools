@@ -35,6 +35,7 @@ def run_try_job():
                    '--type', 'default',
                    '--chrome-dir', os.path.join(PROJECT_DIR, 'chromium'),
                    '--aquarium-dir', os.path.join(PROJECT_DIR, 'aquarium'),
+                   '--dawn-dir', os.path.join(PROJECT_DIR, 'dawn'),
                    '--update',
                    '--email'],
                   test_dir)

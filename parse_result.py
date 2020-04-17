@@ -6,13 +6,17 @@ import sys
 from util.base_util import *
 from os import path
 
-PATTERN_RESULT_FAIL = r'^\d+ test(s?) failed:$'
-PATTERN_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
-PATTERN_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
-PATTERN_RESULT_SKIP = r'^\d+ test(s?) not run:$'
+PATTERN_GTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
+PATTERN_GTEST_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
+PATTERN_GTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
+PATTERN_GTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
 PATTERN_GTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_GTEST_ERROR = r'^(.+) \(.+:\d+\)$'
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
+PATTERN_DAWN_RESULT_START = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
+PATTERN_DAWN_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+PATTERN_DAWN_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./]+)$'
+PATTERN_DAWN_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./]+),.+$'
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -132,10 +136,7 @@ def parse_telemetry_result_file(result_file):
 
 def parse_gtest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  name = result_name.replace('gtest_', '')
-  if name.startswith('end2end') or name.startswith('perf'):
-    name = 'angle_' + name
-  test_suite = TestSuite(name)
+  test_suite = TestSuite(result_name)
   error_result = ''
   for line in read_line(result_file):
     line = line.strip()
@@ -145,7 +146,6 @@ def parse_gtest_result_file(result_file):
         result = TestResult(match.group(1))
         if error_result == 'skip':
           result.is_skipped = True
-          result.result = None
         else:
           result.result = False
           if error_result == 'timeout':
@@ -167,14 +167,49 @@ def parse_gtest_result_file(result_file):
         test_suite.AddResult(result)
         continue
 
-    if re_match(PATTERN_RESULT_FAIL, line):
+    if re_match(PATTERN_GTEST_RESULT_FAIL, line):
       error_result = 'fail'
-    elif re_match(PATTERN_RESULT_CRASH, line):
+    elif re_match(PATTERN_GTEST_RESULT_CRASH, line):
       error_result = 'crash'
-    elif re_match(PATTERN_RESULT_TIMEOUT, line):
+    elif re_match(PATTERN_GTEST_RESULT_TIMEOUT, line):
       error_result = 'timeout'
-    elif re_match(PATTERN_RESULT_SKIP, line):
+    elif re_match(PATTERN_GTEST_RESULT_SKIP, line):
       error_result = 'skip'
+
+  return test_suite
+
+
+def parse_dawn_result_file(result_file):
+  result_name, result_ext = path.splitext(path.basename(result_file))
+  test_suite = TestSuite(result_name)
+  test_result_started = False
+  for line in read_line(result_file):
+    line = line.strip()
+    if not test_result_started:
+      if re_match(PATTERN_DAWN_RESULT_START, line):
+        test_result_started = True
+        continue
+
+      match = re_match(PATTERN_DAWN_RESULT_OK, line)
+      if match:
+        result = TestResult(match.group(1))
+        result.result = True
+        result.is_expected = True
+        test_suite.AddResult(result)
+
+    else:
+      match = re_match(PATTERN_DAWN_RESULT_SKIP, line)
+      if match:
+        result = TestResult(match.group(1))
+        result.is_skipped = True
+        test_suite.AddResult(result)
+        continue
+
+      match = re_match(PATTERN_DAWN_RESULT_FAIL, line)
+      if match:
+        result = TestResult(match.group(1))
+        result.result = False
+        test_suite.AddResult(result)
 
   return test_suite
 
@@ -208,7 +243,7 @@ def merge_shard_result(test_suites):
     merged_result[name].unexpected_failed.extend(test_suite.unexpected_failed)
     merged_result[name].skipped.extend(test_suite.skipped)
 
-  return merged_result.values()
+  return sorted(merged_result.values(), key=lambda suite: suite.name)
 
 
 def generate_test_report(test_suites, detailed_cases):
@@ -277,8 +312,14 @@ def dump_gtest_result(args):
   for item in list_file(args.dir):
     file_name = path.basename(item)
     if file_name.startswith('gtest') and file_name.endswith('.log'):
-      test_suite = parse_gtest_result_file(item)
+      if 'dawn' in file_name:
+        test_suite = parse_dawn_result_file(item)
+      else:
+        test_suite = parse_gtest_result_file(item)
       if not test_suite.IsEmpty():
+        test_suite.name = test_suite.name.replace('gtest_', '')
+        if 'angle_test' in test_suite.name or 'dawn_test' in test_suite.name:
+          test_suite.name = test_suite.name.replace('test', 'end2end_test')
         test_suites.append(test_suite)
   if not test_suites:
     return

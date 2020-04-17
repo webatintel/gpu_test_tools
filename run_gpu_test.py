@@ -6,8 +6,10 @@ import sys
 from util.base_util import *
 from os import path
 
-ANGLE_END_TEST_CMD = 'angle_end2end_tests'
+ANGLE_TEST_CMD = 'angle_end2end_tests'
 ANGLE_PERF_TEST_CMD = 'angle_perftests'
+DAWN_TEST_CMD = 'dawn_end2end_tests'
+DAWN_PERF_TEST_CMD = 'dawn_perf_tests'
 GL_TEST_CMD = 'gl_tests'
 VULKAN_TEST_CMD = 'vulkan_tests'
 AQUARIUM_TEST_CMD = 'aquarium'
@@ -38,23 +40,25 @@ def parse_arguments():
            'gtest    :  gtest suites\n'\
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--backend', '-b',
-      choices=['passthrough', 'validating', 'gl', 'vulkan', 'd3d9',
-               'end2end', 'perf', 'd3d12', 'dawn_d3d12', 'dawn_vulkan'],
+      choices=['validating', 'gl', 'vulkan', 'd3d9', 'd3d11', 'd3d12',
+               'angle', 'angle_perf', 'dawn', 'dawn_perf', 'dawn_d3d12', 'dawn_vulkan'],
       help='Specify the backend. Not all targets are supporting all backends.\n'\
            'Run default tests if the backend is not specified.\n'\
            '\n[WebGL/WebGL2]\n'\
-           'passthrough : passthrough command decoder with default backend (default)\n'\
-           'validating  : validating command decoder with default backend\n'\
+           'validating  : validating command decoder\n'\
            'gl          : opengl passthrough\n'\
            'vulkan      : vulkan passthrough\n'\
            'd3d9        : d3d9   passthrough\n'\
+           'd3d11       : d3d11  passthrough\n'\
            '\n[gtest]\n'\
-           'end2end : angle_end2end_tests (default)\n'\
-           'perf    : angle_perf_tests\n'\
-           'gl      : gl_tests\n'\
-           'vulkan  : vulkan_tests\n'\
+           'dawn       : dawn_end2end_tests\n'\
+           'dawn_perf  : dawn_perf_tests\n'\
+           'angle      : angle_end2end_tests\n'\
+           'angle_perf : angle_perf_tests\n'\
+           'gl         : gl_tests\n'\
+           'vulkan     : vulkan_tests\n'\
            '\n[Aquarium]\n'\
-           'dawn_vulkan : dawn vulkan (default)\n'\
+           'dawn_vulkan : dawn vulkan\n'\
            'dawn_d3d12  : dawn d3d12\n'\
            'd3d12       : d3d12\n\n')
   parser.add_argument('--type', '-t',
@@ -81,28 +85,20 @@ def parse_arguments():
   args, extra_args = parser.parse_known_args()
 
   if args.target.startswith('webgl'):
-    if not args.backend:
-      args.backend = 'passthrough'
-    if (args.backend != 'passthrough' and args.backend != 'validating'
-        and args.backend != 'gl' and args.backend != 'vulkan' and args.backend != 'd3d9'):
+    if not args.backend in ['validating', 'gl', 'vulkan', 'd3d9', 'd3d11']:
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'gtest':
-    if not args.backend:
-      args.backend = 'end2end'
-    if (args.backend != 'end2end' and args.backend != 'perf'
-        and args.backend != 'gl' and args.backend != 'vulkan'):
+    if not args.backend in ['dawn', 'dawn_perf', 'angle', 'angle_perf', 'gl', 'vulkan']:
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'aquarium':
-    if not args.backend:
-      args.backend = 'dawn_vulkan'
-    if not args.backend.startswith('dawn_') and args.backend != 'd3d12':
+    if not args.backend in ['dawn_vulkan', 'dawn_d3d12', 'd3d12']:
       raise Exception('Unsupported backend: ' + args.backend)
 
-  if args.shard > 1 and (not args.target.startswith('webgl') and args.target != 'gtest'):
-    raise Exception('Do not support shard for ' + args.target)
-
-  if args.filter and (not args.target.startswith('webgl') and args.target != 'gtest'):
-    raise Exception('Do not support filter for ' + args.target)
+  if args.target == 'aquarium':
+    if args.shard > 1:
+      raise Exception('Do not support shard for ' + args.target)
+    if args.filter:
+      raise Exception('Do not support filter for ' + args.target)
 
   if args.shard > 1 and args.filter:
     raise Exception('Can not specify shard and filter together')
@@ -162,17 +158,18 @@ def generate_webgl_arguments(args):
 
 def generate_gtest_arguments(args):
   total_args = []
-  if args.backend == 'perf':
-    total_args.extend(['-v', '--one-frame-only',
-                       '--gtest-benchmark-name=angle_perftests'])
-  else:
-    total_args.append('--use-gpu-in-tests')
-
-  if args.backend == 'end2end':
-    total_args.extend(['--test-launcher-retry-limit=0',
-                       '--test-launcher-batch-limit=256'])
-    if is_linux():
-      total_args.append('--no-xvfb')
+  if args.backend == 'angle_perf':
+    total_args.extend(['--verbose', '-v', '--one-frame-only',
+                       '--test-launcher-retry-limit=0',
+                       '--test-launcher-jobs=1',
+                       '--test-launcher-print-test-stdio=always'])
+  elif args.backend in ['angle', 'gl', 'vulkan']:
+    total_args.extend(['--test-launcher-bot-mode',
+                       '--cfi-diag=0',
+                       '--use-gpu-in-tests'])
+    if args.backend == 'angle':
+      total_args.extend(['--test-launcher-retry-limit=0',
+                         '--test-launcher-batch-limit=256'])
 
   if args.filter:
     total_args.append('--gtest_filter=' + args.filter)
@@ -227,9 +224,13 @@ def main():
     total_shards = '--total-shards'
     shard_index = '--shard-index'
   elif args.target == 'gtest':
-    if args.backend == 'end2end':
-      cmd = [path.join(args.dir, args.build_dir, ANGLE_END_TEST_CMD)]
-    elif args.backend == 'perf':
+    if args.backend == 'dawn':
+      cmd = [path.join(args.dir, args.build_dir, DAWN_TEST_CMD)]
+    elif args.backend == 'dawn_perf':
+      cmd = [path.join(args.dir, args.build_dir, DAWN_PERF_TEST_CMD)]
+    elif args.backend == 'angle':
+      cmd = [path.join(args.dir, args.build_dir, ANGLE_TEST_CMD)]
+    elif args.backend == 'angle_perf':
       cmd = [path.join(args.dir, args.build_dir, ANGLE_PERF_TEST_CMD)]
     elif args.backend == 'gl':
       cmd = [path.join(args.dir, args.build_dir, GL_TEST_CMD)]
@@ -243,12 +244,8 @@ def main():
     cmd.extend(generate_aquarium_arguments(args))
   cmd.extend(extra_args)
 
-  if args.backend:
-    args.log_file = '%s_%s_test.log' % (args.target, args.backend)
-    args.result_file = '%s_%s_test.json' % (args.target, args.backend)
-  else:
-    args.log_file = '%s_test.log' % args.target
-    args.result_file = '%s_test.json' % args.target
+  args.log_file = '%s_%s_test.log' % (args.target, args.backend)
+  args.result_file = '%s_%s_test.json' % (args.target, args.backend)
 
   if args.shard == 1:
     execute_shard(cmd, args)

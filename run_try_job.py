@@ -21,6 +21,8 @@ def parse_arguments():
            'generated into out/Release or out/Debug or out/Default.\n\n')
   parser.add_argument('--chrome-dir', '-c',
       help='Chrome source directory.\n\n')
+  parser.add_argument('--dawn-dir', '-d',
+      help='Dawn source directory.\n\n')
   parser.add_argument('--aquarium-dir', '-a',
       help='Aquarium source directory.\n\n')
   parser.add_argument('--build', '-b', action='store_true',
@@ -41,6 +43,9 @@ def parse_arguments():
     if path.exists(path.join(args.chrome_dir, 'src')):
       args.chrome_dir = path.join(args.chrome_dir, 'src')
 
+  if args.dawn_dir:
+    args.dawn_dir = path.abspath(args.dawn_dir)
+
   if args.aquarium_dir:
     args.aquarium_dir = path.abspath(args.aquarium_dir)
 
@@ -53,8 +58,6 @@ def parse_arguments():
     args.try_jobs = config['win_jobs']
   elif is_linux():
     args.try_jobs = config['linux_jobs']
-  elif is_mac():
-    args.try_jobs = config['mac_jobs']
 
   args.try_job_target = config['try_job_target']
   args.try_job_shards = config['try_job_shards']
@@ -134,6 +137,8 @@ def build_project(project, args):
   build_cmd = ['build_project', project, '--type', args.type]
   if project == 'chrome':
     build_cmd.extend(['--dir', args.chrome_dir])
+  elif project == 'dawn':
+    build_cmd.extend(['--dir', args.dawn_dir])
   elif project == 'aquarium':
     build_cmd.extend(['--dir', args.aquarium_dir])
 
@@ -166,6 +171,13 @@ def main():
         notify_command_error(args.report_receivers['admin'], e)
         raise e
     args.chrome_revision = get_chrome_revision(args.chrome_dir)
+
+  if args.dawn_dir:
+    if args.build or args.update or args.sync:
+      try:
+        build_project('dawn', args)
+      except CalledProcessError as e:
+        notify_command_error(args.report_receivers['admin'], e)
 
   if args.aquarium_dir:
     if args.build or args.update or args.sync:
@@ -215,11 +227,8 @@ def main():
           title, report = update_aquarium_report(args, report)
         else:
           title, report = update_test_report(args, target, report)
-        print('\n--------------------------------------------------\n%s\n\n%s' % (title, report))
-        name = target
-        if name != 'gtest':
-          name += '_test'
-        write_file(name + '_report.txt', report)
+        print('\n--------------------------------------------------\n\n%s\n\n%s' % (title, report))
+        write_file(target + '_report.txt', report)
         if args.email:
           send_email(args.report_receivers[target], title, report)
     except CalledProcessError as e:
