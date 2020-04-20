@@ -6,9 +6,9 @@ import sys
 from util.base_util import *
 from os import path
 
-ANGLE_TEST_CMD = 'angle_end2end_tests'
+ANGLE_END2END_TEST_CMD = 'angle_end2end_tests'
 ANGLE_PERF_TEST_CMD = 'angle_perftests'
-DAWN_TEST_CMD = 'dawn_end2end_tests'
+DAWN_END2END_TEST_CMD = 'dawn_end2end_tests'
 DAWN_PERF_TEST_CMD = 'dawn_perf_tests'
 GL_TEST_CMD = 'gl_tests'
 VULKAN_TEST_CMD = 'vulkan_tests'
@@ -88,7 +88,9 @@ def parse_arguments():
     if not args.backend in ['validating', 'gl', 'vulkan', 'd3d9', 'd3d11']:
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'gtest':
-    if not args.backend in ['dawn', 'dawn_perf', 'angle', 'angle_perf', 'gl', 'vulkan']:
+    if args.backend == 'angle' or args.backend == 'dawn':
+      args.backend = args.backend + '_end2end'
+    if not args.backend in ['dawn_end2end', 'dawn_perf', 'angle_end2end', 'angle_perf', 'gl', 'vulkan']:
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.target == 'aquarium':
     if not args.backend in ['dawn_vulkan', 'dawn_d3d12', 'd3d12']:
@@ -163,11 +165,11 @@ def generate_gtest_arguments(args):
                        '--test-launcher-retry-limit=0',
                        '--test-launcher-jobs=1',
                        '--test-launcher-print-test-stdio=always'])
-  elif args.backend in ['angle', 'gl', 'vulkan']:
+  elif args.backend in ['angle_end2end', 'gl', 'vulkan']:
     total_args.extend(['--test-launcher-bot-mode',
                        '--cfi-diag=0',
                        '--use-gpu-in-tests'])
-    if args.backend == 'angle':
+    if args.backend == 'angle_end2end':
       total_args.extend(['--test-launcher-retry-limit=0',
                          '--test-launcher-batch-limit=256'])
 
@@ -224,12 +226,12 @@ def main():
     total_shards = '--total-shards'
     shard_index = '--shard-index'
   elif args.target == 'gtest':
-    if args.backend == 'dawn':
-      cmd = [path.join(args.dir, args.build_dir, DAWN_TEST_CMD)]
+    if args.backend == 'dawn_end2end':
+      cmd = [path.join(args.dir, args.build_dir, DAWN_END2END_TEST_CMD)]
     elif args.backend == 'dawn_perf':
       cmd = [path.join(args.dir, args.build_dir, DAWN_PERF_TEST_CMD)]
-    elif args.backend == 'angle':
-      cmd = [path.join(args.dir, args.build_dir, ANGLE_TEST_CMD)]
+    elif args.backend == 'angle_end2end':
+      cmd = [path.join(args.dir, args.build_dir, ANGLE_END2END_TEST_CMD)]
     elif args.backend == 'angle_perf':
       cmd = [path.join(args.dir, args.build_dir, ANGLE_PERF_TEST_CMD)]
     elif args.backend == 'gl':

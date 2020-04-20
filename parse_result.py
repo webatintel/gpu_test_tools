@@ -136,7 +136,7 @@ def parse_telemetry_result_file(result_file):
 
 def parse_gtest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  test_suite = TestSuite(result_name)
+  test_suite = TestSuite(result_name.replace('gtest_', ''))
   error_result = ''
   for line in read_line(result_file):
     line = line.strip()
@@ -181,7 +181,7 @@ def parse_gtest_result_file(result_file):
 
 def parse_dawn_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  test_suite = TestSuite(result_name)
+  test_suite = TestSuite(result_name.replace('gtest_', ''))
   test_result_started = False
   for line in read_line(result_file):
     line = line.strip()
@@ -317,9 +317,6 @@ def dump_gtest_result(args):
       else:
         test_suite = parse_gtest_result_file(item)
       if not test_suite.IsEmpty():
-        test_suite.name = test_suite.name.replace('gtest_', '')
-        if 'angle_test' in test_suite.name or 'dawn_test' in test_suite.name:
-          test_suite.name = test_suite.name.replace('test', 'end2end_test')
         test_suites.append(test_suite)
   if not test_suites:
     return

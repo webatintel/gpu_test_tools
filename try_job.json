@@ -83,7 +83,7 @@
   "try_job_shards": {
     "webgl" : 2,
     "webgl2": 20,
-    "gtest_end2end" : 4
+    "gtest_angle" : 4
   },
   "aquarium_average_fps": {
     "win": {
