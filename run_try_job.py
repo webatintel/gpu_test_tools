@@ -200,6 +200,9 @@ def main():
     if target == 'aquarium':
       assert args.aquarium_dir
       cmd.extend(['--dir', args.aquarium_dir])
+    elif target == 'gtest' and backend.startswith('dawn'):
+      assert args.dawn_dir
+      cmd.extend(['--dir', args.dawn_dir])
     else:
       assert args.chrome_dir
       cmd.extend(['--dir', args.chrome_dir])

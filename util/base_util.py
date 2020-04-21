@@ -24,7 +24,7 @@ from subprocess import CalledProcessError
 
 PYTHON_CMD = 'vpython'
 EMAIL_SENDER = 'gpu_test@wp-40.sh.intel.com'
-SMTP_SERVER = '10.239.47.74'
+SMTP_SERVER = '10.239.47.103'
 
 PATTERN_NINJA = r'^\[(\d+)/(\d+)\] [A-Z\-\(\)]+ .+$'
 
