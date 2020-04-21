@@ -191,6 +191,13 @@ def generate_aquarium_arguments(args):
 
 
 def execute_shard(cmd, args):
+  env = get_env()
+  if is_win():
+    env.pop('http_proxy', None)
+    env.pop('https_proxy', None)
+    env.pop('HTTP_PROXY', None)
+    env.pop('HTTPS_PROXY', None)
+
   log_name, log_ext = path.splitext(args.log_file)
   result_name, result_ext = path.splitext(args.result_file)
   shard_postfix = ''
@@ -209,7 +216,7 @@ def execute_shard(cmd, args):
     if args.target.startswith('webgl'):
       new_cmd.append('--isolated-script-test-output=' + result_file)
     try:
-      execute_command(new_cmd, print_log=args.log, return_log=False, save_log=log_file)
+      execute_command(new_cmd, print_log=args.log, return_log=False, save_log=log_file, env=env)
     except CalledProcessError:
       pass
 
