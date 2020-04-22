@@ -254,7 +254,7 @@ def generate_test_report(test_suites, detailed_cases):
       max_name_len = max(max_name_len, len(test_suite.name))
     name_format = '{:<%d}' % (max_name_len+2)
 
-    report += '\nTest Result:\n'
+    report += 'Test Result:\n'
     for test_suite in test_suites:
       report += name_format.format(test_suite.name)
       report += '{:<14}'.format('[Pass:%d]' % len(test_suite.actual_passed))
@@ -362,7 +362,7 @@ def main():
     report = dump_aquarium_result(args)
 
   if report:
-    print(report)
+    print report,
 
   return 0
 

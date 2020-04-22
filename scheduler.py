@@ -31,13 +31,10 @@ def run_try_job():
   current_time = datetime.datetime.now().strftime('%Y_%m%d_%H%M')
   test_dir = os.path.join(GPU_TEST_DIR, current_time)
   os.makedirs(test_dir)
-  execute_command(['run_try_job',
-                   '--type', 'default',
+  execute_command(['run_try_job', 'all',
                    '--chrome-dir', os.path.join(PROJECT_DIR, 'chromium'),
                    '--aquarium-dir', os.path.join(PROJECT_DIR, 'aquarium'),
-                   '--dawn-dir', os.path.join(PROJECT_DIR, 'dawn'),
-                   '--update',
-                   '--email'],
+                   '--update', '--email'],
                   test_dir)
 
   execute_command(['check_try_job',

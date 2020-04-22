@@ -191,12 +191,6 @@ def send_email(receivers, subject, body='', attached_files=[]):
   except Exception as e:
     print(e)
 
-def execute_command_stdout(cmd, dir=None, env=None):
-  process = subprocess.Popen(cmd, shell=is_win(), cwd=dir, env=env)
-  retcode = process.wait()
-  if retcode:
-    raise CalledProcessError(retcode, cmd, '')
-
 def execute_command(cmd,
                     print_log=True, return_log=False, save_log=None,
                     dir=None, env=None):

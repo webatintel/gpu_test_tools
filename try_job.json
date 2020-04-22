@@ -1,54 +1,43 @@
 {
-  "report_receivers": {
-    "admin": [
-      "lin.sun@intel.com"
+  "webgl_jobs": {
+    "win": [
+      "webgl2_conformance_gl_passthrough_tests",
+      "webgl_conformance_gl_passthrough_tests",
+      "webgl2_conformance_tests",
+      "webgl_conformance_tests",
+      "webgl_conformance_d3d9_passthrough_tests",
+      "webgl_conformance_vulkan_passthrough_tests"
     ],
-    "webgl": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com"
-    ],
-    "gtest": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com"
-    ],
-    "aquarium": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com",
-      "jiajie.hu@intel.com",
-      "jiawei.shao@intel.com"
+    "linux": [
+      "webgl2_conformance_gl_passthrough_tests",
+      "webgl_conformance_gl_passthrough_tests",
+      "webgl2_conformance_validating_tests",
+      "webgl_conformance_validating_tests",
+      "webgl_conformance_vulkan_passthrough_tests"
     ]
   },
-  "win_jobs": [
-    "aquarium_d3d12_tests",
-    "aquarium_dawn_d3d12_tests",
-    "aquarium_dawn_vulkan_tests",
-    "dawn_end2end_tests",
-    "dawn_perf_tests",
+  "angle_jobs": [
     "angle_end2end_tests",
-    "angle_perf_tests",
-    "gl_tests",
-    "vulkan_tests",
-    "webgl2_conformance_gl_passthrough_tests",
-    "webgl_conformance_gl_passthrough_tests",
-    "webgl2_conformance_tests",
-    "webgl_conformance_tests",
-    "webgl_conformance_d3d9_passthrough_tests",
-    "webgl_conformance_vulkan_passthrough_tests"
+    "angle_perf_tests"
   ],
-  "linux_jobs": [
-    "aquarium_dawn_vulkan_tests",
+  "dawn_jobs": [
     "dawn_end2end_tests",
-    "dawn_perf_tests",
-    "angle_end2end_tests",
-    "angle_perf_tests",
-    "gl_tests",
-    "vulkan_tests",
-    "webgl2_conformance_gl_passthrough_tests",
-    "webgl_conformance_gl_passthrough_tests",
-    "webgl2_conformance_validating_tests",
-    "webgl_conformance_validating_tests",
-    "webgl_conformance_vulkan_passthrough_tests"
+    "dawn_perf_tests"
   ],
+  "gtest_jobs": [
+    "gl_tests",
+    "vulkan_tests"
+  ],
+  "aquarium_jobs": {
+    "win": [
+      "aquarium_d3d12_tests",
+      "aquarium_dawn_d3d12_tests",
+      "aquarium_dawn_vulkan_tests"
+    ],
+    "linux": [
+      "aquarium_dawn_vulkan_tests"
+    ]
+  },
   "try_job_target": {
     "aquarium_d3d12_tests"                      : ["aquarium", "d3d12"],
     "aquarium_dawn_d3d12_tests"                 : ["aquarium", "dawn_d3d12"],
@@ -68,6 +57,11 @@
     "webgl_conformance_d3d9_passthrough_tests"  : ["webgl", "d3d9"],
     "webgl_conformance_vulkan_passthrough_tests": ["webgl", "vulkan"]
   },
+  "try_job_shards": {
+    "webgl" : 2,
+    "webgl2": 20,
+    "gtest_angle" : 4
+  },
   "try_job_browser_args": {
     "webgl_validating":
       ["--force_high_performance_gpu", "--use-cmd-decoder=validating"],
@@ -80,10 +74,24 @@
     "webgl_vulkan":
       ["--force_high_performance_gpu", "--use-cmd-decoder=passthrough", "--use-angle=vulkan"]
   },
-  "try_job_shards": {
-    "webgl" : 2,
-    "webgl2": 20,
-    "gtest_angle" : 4
+  "report_receivers": {
+    "admin": [
+      "lin.sun@intel.com"
+    ],
+    "webgl": [
+      "lin.sun@intel.com",
+      "yang.gu@intel.com"
+    ],
+    "gtest": [
+      "lin.sun@intel.com",
+      "yang.gu@intel.com"
+    ],
+    "aquarium": [
+      "lin.sun@intel.com",
+      "yang.gu@intel.com",
+      "jiajie.hu@intel.com",
+      "jiawei.shao@intel.com"
+    ]
   },
   "aquarium_average_fps": {
     "win": {

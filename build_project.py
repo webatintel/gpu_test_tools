@@ -78,22 +78,21 @@ def parse_arguments():
       description='Build tools',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('project', nargs='?',
-      choices=['chrome', 'dawn', 'aquarium', 'mesa'], default='chrome',
+      choices=['chrome', 'aquarium', 'mesa'], default='chrome',
       help='Specify the project. Default is \'chrome\'.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Project source directory.\n\n')
   parser.add_argument('--type', '-t', nargs='*',
-      choices=['release', 'debug', 'default', 'official'], default='release',
-      help='Build type. Default is \'release\'.\n'\
-           'release/debug/default assume that the binaries are\n'\
-           'generated into out/Release or out/Debug or out/Default.\n\n')
+      choices=['release', 'debug', 'default'], default='default',
+      help='Browser type. Default is \'default\', which gn args are same as official bot.\n'\
+           'default/release/debug assume that the binaries are\n'\
+           'generated into out/Default or out/Release or out/Debug.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
       help='Fetch from origin and rebase current branch,\n'\
            'then synchronize the dependencies before building.\n\n')
-  parser.add_argument('--sync', '-s', action='store_true',
-      help='Synchronize the dependencies before building.\n\n')
   parser.add_argument('--pack', '-p',
-      help='Package the binaries to a directory after building.\n\n')
+      help='Package the binaries to a directory after building.\n'\
+           'For mesa, it equals to --prefix.\n\n')
   parser.add_argument('--zip', '-z',
       help='Package the binaries to a zip file after building.\n\n')
   args = parser.parse_args()
@@ -117,9 +116,6 @@ def update_chrome(args):
                   dir=args.dir)
   execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dir)
-
-
-def sync_chrome(args):
   execute_command(['gclient', 'sync', '-D'],
                   dir=args.dir)
 
@@ -191,32 +187,6 @@ def pack_chrome(args):
     remove(pack_dir)
 
 
-def update_dawn(args):
-  execute_command(['git', 'fetch', 'origin'],
-                  dir=args.dir)
-  execute_command(['git', 'rebase', 'origin/master'],
-                  dir=args.dir)
-
-
-def sync_dawn(args):
-  execute_command(['gclient', 'sync', '-D'],
-                  dir=args.dir)
-
-
-def build_dawn(args):
-  build_args = {}
-  build_args['is_debug'] = 'false'
-
-  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
-  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
-
-  build_cmd = ['autoninja', '-C', args.build_dir]
-  for target in DAWN_BUILD_TARGETS:
-    cmd = build_cmd[:]
-    cmd.append(target)
-    execute_command(cmd, dir=args.dir)
-
-
 def update_aquarium(args):
   execute_command(['git', 'checkout', '.'],
                   dir=args.dir)
@@ -225,8 +195,6 @@ def update_aquarium(args):
   execute_command(['git', 'rebase', 'origin/master'],
                   dir=args.dir)
 
-
-def sync_aquarium(args):
   dawn_dir = path.join(args.dir, 'third_party', 'dawn')
   execute_command(['git', 'fetch', 'origin'],
                   dir=dawn_dir)
@@ -337,7 +305,6 @@ def pack_mesa(args):
 
   if args.zip:
     zip(args.zip, args.prefix)
-  if not args.pack:
     remove(args.prefix)
 
 
@@ -347,20 +314,10 @@ def main():
   if args.update:
     if args.project == 'chrome':
       update_chrome(args)
-    elif args.project == 'dawn':
-      update_dawn(args)
     elif args.project == 'aquarium':
       update_aquarium(args)
     elif args.project == 'mesa':
       update_mesa(args)
-
-  if args.update or args.sync:
-    if args.project == 'chrome':
-      sync_chrome(args)
-    elif args.project == 'dawn':
-      sync_dawn(args)
-    elif args.project == 'aquarium':
-      sync_aquarium(args)
 
   for build_type in args.type:
     if args.project == 'mesa':
@@ -380,8 +337,6 @@ def main():
 
     if args.project == 'chrome':
       build_chrome(args)
-    elif args.project == 'dawn':
-      build_dawn(args)
     elif args.project == 'aquarium':
       build_aquarium(args)
     elif args.project == 'mesa':

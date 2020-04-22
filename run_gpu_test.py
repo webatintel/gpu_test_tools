@@ -62,10 +62,10 @@ def parse_arguments():
            'dawn_d3d12  : dawn d3d12\n'\
            'd3d12       : d3d12\n\n')
   parser.add_argument('--type', '-t',
-      choices=['release', 'debug', 'default'], default='release',
-      help='Browser type. Default is \'release\'.\n'\
-           'release/debug/default assume that the binaries are\n'\
-           'generated into out/Release or out/Debug or out/Default.\n\n')
+      choices=['release', 'debug', 'default'], default='default',
+      help='Browser type. Default is \'default\'.\n'\
+           'default/debug/release assume that the binaries are\n'\
+           'generated into out/Default or out/Release or out/Debug.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Chrome/Aquarium directory.\n\n')
   parser.add_argument('--log', '-l', action='store_true',

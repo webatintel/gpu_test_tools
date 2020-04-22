@@ -161,11 +161,15 @@ def main():
           handle_error('Missing try job arguments: ' + name)
 
   for key, value in win_jobs.items():
-    if not key in config['win_jobs']:
+    if (not key in config['webgl_jobs']['win']
+        and not key in config['angle_jobs']
+        and not key in config['gtest_jobs']):
       handle_error('Missing try job on Windows: ' + key)
 
   for key, value in linux_jobs.items():
-    if not key in config['linux_jobs']:
+    if (not key in config['webgl_jobs']['linux']
+        and not key in config['angle_jobs']
+        and not key in config['gtest_jobs']):
       handle_error('Missing try job on Linux: ' + key)
 
   return 0
