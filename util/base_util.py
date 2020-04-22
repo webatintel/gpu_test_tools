@@ -2,18 +2,11 @@
 
 import datetime
 import email.utils
-import json
 import os
-import random
 import re
-import shutil
 import smtplib
-import socket
-import string
 import subprocess
 import sys
-import time
-import zipfile
 
 from email import encoders
 from email.mime.base import MIMEBase
@@ -22,146 +15,28 @@ from email.mime.text import MIMEText
 from os import path
 from subprocess import CalledProcessError
 
-PYTHON_CMD = 'vpython'
 EMAIL_SENDER = 'gpu_test@wp-40.sh.intel.com'
 SMTP_SERVER = '10.239.47.103'
 
-PATTERN_NINJA = r'^\[(\d+)/(\d+)\] [A-Z\-\(\)]+ .+$'
+PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z\-\(\)]+ .+$'
+PATTERN_CHROME_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
 
 MATCHERS = {}
 
 def re_match(pattern, text):
   global MATCHERS
-  if MATCHERS.has_key(pattern):
+  if pattern in MATCHERS:
     matcher = MATCHERS[pattern]
   else:
     matcher = re.compile(pattern)
     MATCHERS[pattern] = matcher
   return matcher.match(text)
 
-def is_win():
-  return sys.platform == 'win32'
-
-def is_linux():
-  return sys.platform.startswith('linux')
-
-def is_mac():
-  return sys.platform == 'darwin'
-
-def get_osname():
-  if is_win():
-    return 'win'
-  elif is_linux():
-    return 'linux'
-  elif is_mac():
-    return 'mac'
-
-def sleep(second):
-  time.sleep(second)
-
-def format_date(date, format):
-  return date.strftime(format)
-
-def format_time(time, format):
-  return time.strftime(format)
-
-def get_currentdate(format=None):
-  date = datetime.date.today()
-  if format:
-    return format_date(date, format)
-  return date
-
 def get_currenttime(format=None):
   time = datetime.datetime.now()
   if format:
-    return format_time(time, format)
+    return time.strftime(format)
   return time
-
-def get_hostname():
-  return socket.gethostname()
-
-def get_env():
-  return os.environ.copy()
-
-def random_string(size):
-  return ''.join(random.choice(string.ascii_lowercase) for i in range(size))
-
-def mkdir(dir):
-  try:
-    os.makedirs(dir)
-  except OSError:
-    pass
-
-def chmod(path, mode):
-  os.chmod(path, int(str(mode), 8))
-
-def copy(src, dest):
-  if path.isfile(src):
-    shutil.copy(src, dest)
-  elif path.isdir(src):
-    if path.exists(dest):
-      dest = path.join(dest, path.basename(src))
-    shutil.copytree(src, dest)
-
-def remove(src):
-  if path.isfile(src):
-    os.remove(src)
-  elif path.isdir(src):
-    shutil.rmtree(src)
-
-def move(src, dest):
-  shutil.move(src, dest)
-
-def zip(zip_file, src_dir):
-  with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as f:
-    for root, _, files in os.walk(src_dir):
-      for src_file in files:
-        src_file = os.path.join(root, src_file)
-        f.write(src_file, path.relpath(src_file, src_dir))
-
-def unzip(zip_file, dest_dir):
-  with zipfile.ZipFile(zip_file, 'r') as f:
-    f.extractall(dest_dir)
-
-def read_json(json_file):
-  try:
-    with open(json_file, 'r') as f:
-      return json.load(f)
-  except Exception:
-    return {}
-
-def write_json(json_file, content_dict):
-  if not content_dict:
-    return
-  with open(json_file, 'w') as f:
-    json.dump(content_dict, f)
-
-def read_line(file_name):
-  with open(file_name, 'r') as f:
-    while True:
-      line = f.readline()
-      if not line:
-        break
-      yield line
-
-def read_file(file_name):
-  try:
-    with open(file_name, 'r') as f:
-      return f.read()
-  except Exception:
-    return ''
-
-def write_file(file_name, content):
-  if not content:
-    return
-  with open(file_name, 'w') as f:
-    f.write(content)
-
-def list_file(dir):
-  for item in os.listdir(dir):
-    file_name = path.join(dir, item)
-    if path.isfile(file_name):
-      yield file_name
 
 def send_email(receivers, subject, body='', attached_files=[]):
   if not receivers:
@@ -179,7 +54,8 @@ def send_email(receivers, subject, body='', attached_files=[]):
 
   for file_name in attached_files:
     attachment = MIMEBase('application', "octet-stream")
-    attachment.set_payload(read_file(file_name))
+    with open(file_name, 'r') as f:
+      attachment.set_payload(f.read())
     encoders.encode_base64(attachment)
     attachment.add_header('Content-Disposition', 'attachment; filename="%s"' % path.basename(file_path))
     message.attach(attachment)
@@ -191,8 +67,8 @@ def send_email(receivers, subject, body='', attached_files=[]):
   except Exception as e:
     print(e)
 
-def execute_command(cmd,
-                    print_log=True, return_log=False, save_log=None,
+
+def execute_command(cmd, print_log=True, return_log=False, save_log=None,
                     dir=None, env=None):
   log_lines = []
   log_file = None
@@ -212,7 +88,7 @@ def execute_command(cmd,
 
     process = subprocess.Popen(cmd,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        shell=is_win(), cwd=dir, env=env)
+        shell=(sys.platform=='win32'), cwd=dir, env=env)
 
     for line in iter(process.stdout.readline, b''):
       line = line.strip()
@@ -222,7 +98,7 @@ def execute_command(cmd,
 
       # Generate progress bar
       if print_log and is_ninja_command:
-        match = re_match(PATTERN_NINJA, line)
+        match = re_match(PATTERN_NINJA_PROGRESS, line)
         if match:
           progress = int(match.group(1)) * 100 / int(match.group(2))
           if progress > last_progress:
@@ -272,7 +148,7 @@ def execute_command(cmd,
     if save_log:
       if not log_file:
         log_file = open(save_log, 'w')
-      log_file.write(e)
+      log_file.write(str(e))
     raise CalledProcessError(1, cmd, '\n'.join(log_lines))
   finally:
     if log_file:
@@ -282,3 +158,18 @@ def execute_command(cmd,
   if retcode:
     raise CalledProcessError(retcode, cmd, '\n'.join(log_lines))
   return '\n'.join(log_lines)
+
+
+def get_chrome_revision(chrome_dir, back_level=0):
+  try:
+    log = execute_command(['git', 'log', '-1', 'HEAD~%d' % back_level],
+                          print_log=False, return_log=True, dir=chrome_dir)
+    log_lines = log.split('\n')
+    for i in range(len(log_lines)-1, -1, -1):
+      match = re_match(PATTERN_CHROME_REVISION, log_lines[i])
+      if match:
+        return match.group(1)
+  except CalledProcessError:
+    pass
+
+  return ''

@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
+import os
 import sys
 
 from util.base_util import *
+from util.file_util import *
 from os import path
 
 PATTERN_GTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
@@ -12,31 +14,33 @@ PATTERN_GTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
 PATTERN_GTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
 PATTERN_GTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_GTEST_ERROR = r'^(.+) \(.+:\d+\)$'
-PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 PATTERN_DAWN_RESULT_START = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
 PATTERN_DAWN_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_DAWN_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./]+)$'
 PATTERN_DAWN_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./]+),.+$'
+PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Parse test results and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('target', nargs='?',
-      choices=['webgl', 'gtest', 'aquarium'], default='webgl',
-      help='Specify the test results you want to parse.\n\n'\
-           'webgl    :  WebGL and WebGL2 conformance tests\n'\
-           'gtest    :  gtest suites\n'\
-           'aquarium :  Aquarium tests\n\n')
+  parser.add_argument('target', nargs='*',
+      choices=['webgl', 'dawn', 'angle', 'gpu', 'aquarium'], default='webgl',
+      help='Specify the test results you want to parse. Default is \'webgl\'\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='The directory where the results locate in.\n\n')
   args = parser.parse_args()
+
+  if not isinstance(args.target, list):
+    args.target = [args.target]
+  if 'aquarium' in args.target and len(args.target) > 1:
+    raise Exception('Can not merge test result and perf result')
 
   args.dir = path.abspath(args.dir)
   return args
 
 
-class AquariumResult(object):
+class PerfResult(object):
   def __init__(self, name):
     self.name = name
     self.average_fps = None
@@ -87,7 +91,7 @@ class TestSuite(object):
     return True
 
 
-def parse_telemetry_result(key, value):
+def parse_json_result(key, value):
   test_result = TestResult(key)
   actual = value['actual'].split(' ')
   if len(actual) == 1 and actual[0] == 'SKIP':
@@ -98,9 +102,12 @@ def parse_telemetry_result(key, value):
   for item in actual:
     test_result.result = test_result.result or item == 'PASS'
 
-  test_result.duration = 0
-  for item in value['times']:
-    test_result.duration = test_result.duration + item
+  if 'time' in value:
+    test_result.duration = value['time']
+  elif 'times' in value:
+    test_result.duration = 0
+    for item in value['times']:
+      test_result.duration = test_result.duration + item
 
   if value['actual'] == value['expected']:
     test_result.is_expected = True
@@ -111,32 +118,34 @@ def parse_telemetry_result(key, value):
 
   if test_result.result and len(actual) > 1:
     test_result.is_flaky = True
+  if value['actual'] == 'CRASH':
+    test_result.is_crash = True
+  elif value['actual'] == 'TIMEOUT':
+    test_result.is_timeout = True
 
   test_result.retry = len(actual) - 1
   return test_result
 
 
-def parse_telemetry_result_dict(result_dict, test_suite, prefix=''):
+def parse_json_result_dict(result_dict, test_suite, prefix=''):
   for key,value in result_dict.iteritems():
-    if value.get('actual'):
-      test_suite.AddResult(parse_telemetry_result(prefix + key, value))
+    if 'actual' in value and 'expected' in value:
+      test_suite.AddResult(parse_json_result(prefix + key, value))
     else:
-      parse_telemetry_result_dict(value, test_suite, prefix + key + '/')
+      parse_json_result_dict(value, test_suite, prefix + key + '/')
 
 
-def parse_telemetry_result_file(result_file):
-  result_dict = read_json(result_file)
-  if not result_dict:
-    return
+def parse_json_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   test_suite = TestSuite(result_name)
-  parse_telemetry_result_dict(result_dict['tests'], test_suite)
+  result_dict = read_json(result_file)
+  parse_json_result_dict(result_dict['tests'], test_suite)
   return test_suite
 
 
 def parse_gtest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  test_suite = TestSuite(result_name.replace('gtest_', ''))
+  test_suite = TestSuite(result_name)
   error_result = ''
   for line in read_line(result_file):
     line = line.strip()
@@ -181,7 +190,7 @@ def parse_gtest_result_file(result_file):
 
 def parse_dawn_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  test_suite = TestSuite(result_name.replace('gtest_', ''))
+  test_suite = TestSuite(result_name)
   test_result_started = False
   for line in read_line(result_file):
     line = line.strip()
@@ -216,14 +225,13 @@ def parse_dawn_result_file(result_file):
 
 def parse_aquarium_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
-  is_data_line = False
   for line in read_line(result_file):
     line = line.strip()
     match = re_match(PATTERN_AVERAGE_FPS, line)
     if match:
-      test_result = AquariumResult(result_name)
-      test_result.average_fps = int(match.group(1))
-      return test_result
+      result = PerfResult(result_name)
+      result.average_fps = int(match.group(1))
+      return result
 
 
 def merge_shard_result(test_suites):
@@ -246,46 +254,11 @@ def merge_shard_result(test_suites):
   return sorted(merged_result.values(), key=lambda suite: suite.name)
 
 
-def generate_test_report(test_suites, detailed_cases):
-  report = ''
-  if test_suites:
-    max_name_len = 0
-    for test_suite in test_suites:
-      max_name_len = max(max_name_len, len(test_suite.name))
-    name_format = '{:<%d}' % (max_name_len+2)
-
-    report += 'Test Result:\n'
-    for test_suite in test_suites:
-      report += name_format.format(test_suite.name)
-      report += '{:<14}'.format('[Pass:%d]' % len(test_suite.actual_passed))
-      report += '{:<11}'.format('[Fail:%d]' % len(test_suite.actual_failed))
-      report += '{:<11}'.format('[Skip:%d]' % len(test_suite.skipped))
-      report += '{:<17}'.format('[Flaky Pass:%d]' % len(test_suite.flaky_passed))
-      report += '{:<15}'.format('[New Pass:%d]' % len(test_suite.unexpected_passed))
-      report += '[New Fail:%d]\n' % len(test_suite.unexpected_failed)
-
-  if detailed_cases:
-    for name, results in detailed_cases.items():
-      report += '\n%s:\n' % name
-      for result in results:
-        report += '%s\n' % result
-  return report
-
-
-def dump_telemetry_result(args):
-  test_suites = []
-  for item in list_file(args.dir):
-    file_name = path.basename(item)
-    if file_name.startswith(args.target) and file_name.endswith('.json'):
-      test_suite = parse_telemetry_result_file(item)
-      if not test_suite.IsEmpty():
-        test_suites.append(test_suite)
-  if not test_suites:
-    return
-
-  test_suites = merge_shard_result(test_suites)
+def generate_test_report(test_suites):
+  max_name_len = 0
   detailed_cases = {}
   for test_suite in test_suites:
+    max_name_len = max(max_name_len, len(test_suite.name))
     if test_suite.flaky_passed:
       detailed_cases.setdefault('Flaky Pass', [])
       for test_result in test_suite.flaky_passed:
@@ -304,65 +277,71 @@ def dump_telemetry_result(args):
         result = '%s    %s' % (test_result.test_suite.name, test_result.name)
         detailed_cases['New Fail'].append(result)
 
-  return generate_test_report(test_suites, detailed_cases)
-
-
-def dump_gtest_result(args):
-  test_suites = []
-  for item in list_file(args.dir):
-    file_name = path.basename(item)
-    if file_name.startswith('gtest') and file_name.endswith('.log'):
-      if 'dawn' in file_name:
-        test_suite = parse_dawn_result_file(item)
-      else:
-        test_suite = parse_gtest_result_file(item)
-      if not test_suite.IsEmpty():
-        test_suites.append(test_suite)
-  if not test_suites:
-    return
-
-  test_suites = merge_shard_result(test_suites)
-  detailed_cases = {}
+  name_format = '{:<%d}' % (max_name_len+2)
+  report = 'Test Result:\n'
   for test_suite in test_suites:
-    if test_suite.unexpected_failed:
-      detailed_cases.setdefault('New Fail', [])
-      for test_result in test_suite.unexpected_failed:
-        result = '%s    %s' % (test_result.test_suite.name, test_result.name)
-        detailed_cases['New Fail'].append(result)
+    report += name_format.format(test_suite.name)
+    report += '{:<14}'.format('[Pass:%d]' % len(test_suite.actual_passed))
+    report += '{:<11}'.format('[Fail:%d]' % len(test_suite.actual_failed))
+    report += '{:<11}'.format('[Skip:%d]' % len(test_suite.skipped))
+    report += '{:<17}'.format('[Flaky Pass:%d]' % len(test_suite.flaky_passed))
+    report += '{:<15}'.format('[New Pass:%d]' % len(test_suite.unexpected_passed))
+    report += '[New Fail:%d]\n' % len(test_suite.unexpected_failed)
 
-  return generate_test_report(test_suites, detailed_cases)
-
-
-def dump_aquarium_result(args):
-  test_results = []
-  for item in list_file(args.dir):
-    file_name = path.basename(item)
-    if file_name.startswith('aquarium') and file_name.endswith('.log'):
-      test_result = parse_aquarium_result_file(item)
-      if test_result and test_result.average_fps > 0:
-        test_results.append(test_result)
-  if not test_results:
-    return
-
-  detailed_cases = {}
-  detailed_cases['Average FPS'] = []
-  for test_result in test_results:
-    result = '%s    %d' % (test_result.name, test_result.average_fps)
-    detailed_cases['Average FPS'].append(result)
-  return generate_test_report(None, detailed_cases)
+  if detailed_cases:
+    for name, results in detailed_cases.items():
+      report += '\n%s:\n' % name
+      for result in results:
+        report += '%s\n' % result
+  return report
 
 
 def main():
   args = parse_arguments()
-  if args.target == 'webgl':
-    report = dump_telemetry_result(args)
-  elif args.target == 'gtest':
-    report = dump_gtest_result(args)
-  elif args.target == 'aquarium':
-    report = dump_aquarium_result(args)
 
-  if report:
-    print report,
+  if args.target == ['aquarium']:
+    perf_results = []
+    max_name_len = 0
+    for item in list_file(args.dir):
+      file_name = path.basename(item)
+      if file_name.startswith('aquarium') and file_name.endswith('.log'):
+        result = parse_aquarium_result_file(item)
+        if result and result.average_fps > 0:
+          perf_results.append(result)
+          max_name_len = max(max_name_len, len(result.name))
+
+    if perf_results:
+      report = 'Average FPS:\n'
+      name_format = '{:<%d}' % (max_name_len+2)
+      for result in perf_results:
+        report += '%s%d\n' % (name_format.format(result.name), result.average_fps)
+      print report,
+  else:
+    test_suites = []
+    for item in list_file(args.dir):
+      file_name = path.basename(item)
+      test_suite = None
+      for target in args.target:
+        if file_name.startswith(target):
+          if target == 'webgl':
+            if file_name.endswith('.json'):
+              test_suite = parse_json_result_file(file_name)
+          elif target == 'dawn':
+            if file_name.endswith('.json'):
+              test_suite = parse_json_result_file(file_name)
+            elif file_name.endswith('.log'):
+              test_suite = parse_dawn_result_file(item)
+          elif target in ['angle', 'gpu']:
+            if file_name.endswith('.log'):
+              test_suite = parse_gtest_result_file(item)
+      if test_suite and not test_suite.IsEmpty():
+        test_suites.append(test_suite)
+
+    if test_suites:
+      test_suites = merge_shard_result(test_suites)
+      report = generate_test_report(test_suites)
+      if report:
+        print report,
 
   return 0
 
