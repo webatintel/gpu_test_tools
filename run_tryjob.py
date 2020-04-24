@@ -33,12 +33,12 @@ def parse_arguments():
            'angle    :  All ANGLE tests\n'\
            'gpu      :  All GPU unit tests\n'\
            'aquarium :  All Aquarium tests\n\n')
-  parser.add_argument('--test-filter', '-f',
-      help='Filter the tests that starts with the filter. Multiple filters are separated by comma ",".\n'\
+  parser.add_argument('--test-filter', '-f', nargs='*',
+      help='Filter the tests that starts with the filter, you can specify multiple.\n'\
            'This argument will suppress --job.\n\n')
   parser.add_argument('--target', '-t', default='Default',
       help='The target build directory under out/. Default is \'Default\'.\n\n')
-  parser.add_argument('--dir', '-d',
+  parser.add_argument('--result-dir',
       help='Where to run test and to save the result.\n'\
            'If not specified, it creates a directory with timestamp under tryjob/ of source directory\n\n')
   parser.add_argument('--chrome-dir',
@@ -60,10 +60,10 @@ def parse_arguments():
       help='Send the report by email.\n\n')
   args = parser.parse_args()
 
-  if args.dir:
-    args.dir = path.abspath(args.dir)
+  if args.result_dir:
+    args.result_dir = path.abspath(args.result_dir)
   else:
-    args.dir = path.join(TRYJOB_DIR, get_currenttime('%Y_%m%d_%H%M_%S'))
+    args.result_dir = path.join(TRYJOB_DIR, get_currenttime('%Y_%m%d_%H%M_%S'))
 
   if args.chrome_dir:
     args.chrome_dir = path.abspath(args.chrome_dir)
@@ -81,9 +81,9 @@ def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
   args.tryjobs = []
   if args.test_filter:
-    for test_filter in args.test_filter.split(','):
+    for test_filter in args.test_filter:
       for key,value in config['tryjob'].items():
-        if key.startswith(test_filter):
+        if test_filter in key:
           print(key)
           args.tryjobs.append((value[0], value[1]))
   else:
@@ -159,8 +159,8 @@ def build_project(args, project, build_dir):
 
 def notify_command_error(receiver, error):
   send_email(receiver,
-            '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
-            '%s\n\n%s' % (' '.join(error.cmd), error.output))
+             '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
+             '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
 
 def main():
@@ -182,8 +182,8 @@ def main():
 
     try:
       if args.aquarium_dir:
-        build_project(args, 'aquarium')
-    except CalledProcessError:
+        build_project(args, 'aquarium', args.aquarium_dir)
+    except CalledProcessError as e:
       if args.email:
         notify_command_error(args.receiver['aquarium'], e)
       aquarium_build_failed = True
@@ -197,7 +197,7 @@ def main():
   if args.chrome_dir:
     header += 'Chrome: %s\n' % get_chrome_revision(args.chrome_dir)
 
-  mkdir(args.dir)
+  mkdir(args.result_dir)
   test_set = set()
   for test, backend in args.tryjobs:
     if test == 'aquarium' and aquarium_build_failed:
@@ -220,14 +220,14 @@ def main():
         if key in args.tryjob_shards:
           cmd += ['--shard', str(args.tryjob_shards[key])]
           break
-      execute_command(cmd, return_log=True, dir=args.dir)
+      execute_command(cmd, return_log=True, dir=args.result_dir)
 
       test_set.add(test.replace('webgl2', 'webgl'))
       test_list = list(test_set)
       if 'aquarium' in test_list:
         test_list.remove('aquarium')
         report = execute_command([path.join(BIN_DIR, 'parse_result'), '--test', 'aquarium'],
-                                  print_log=False, return_log=True, dir=args.dir)
+                                 print_log=False, return_log=True, dir=args.result_dir)
         if report:
           title, report = update_aquarium_report(args, report)
           report = '%s\n%s' % (header, report)
@@ -238,8 +238,7 @@ def main():
 
       if test_list:
         report = execute_command([path.join(BIN_DIR, 'parse_result'), '--test'] + test_list,
-                                print_log=False, return_log=True, dir=args.dir)
-        print(report)
+                                 print_log=False, return_log=True, dir=args.result_dir)
         if report:
           title, report = update_tryjob_report(args, report)
           report = '%s\n%s' % (header, report)

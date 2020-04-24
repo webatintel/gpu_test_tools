@@ -1,218 +1,82 @@
 
-# The utilities for GPU test
+# Utilities for GPU Test
 
-Add `gpu_test_tools/bin` to the `PATH` environment variable, then you can run below commands in anywhere.
+This repository provides the utilities to run conformance test and unit test for GPU based on Chromium/Dawn/ANGLE/Aquarium. The tests comply with the arguments of Chromium's official trybots and simulate their actions.
 
-----------
+## Run tryjobs
 
-## run_try_job
+If you just want to run some type of tryjobs like official trybots and to check the results, `run_tryjob` is the only command you need to know. It runs selected tests with your local build. Once the tests are finished, the statistics are output to the screen and the file *tryjob_report.txt*.
 
-Run try jobs that is defined in `try_job.json`, and generate test reports after test is finished.
-
-One typical example is as below. The Chrome directory is `chromium`, the Aquarium directory is `aquarium`, the build directories of both are `out/Default`:
-> run_try_job -t default -c ./chromium -a ./aquarium
 
 ```
-run_try_job [--type {release,debug,default}]
-            [--chrome-dir CHROME_DIR]
-            [--aquarium-dir AQUARIUM_DIR]
-            [--build]
-            [--sync]
-            [--email]
-            [--iris]
-
-optional arguments:
-  --type {release,debug,default}, -t
-                        Browser type. Default is 'release'.
-                        release/debug/default assume that the binaries are
-                        generated into out/Release or out/Debug or out/Default.
-                        
-  --chrome-dir CHROME_DIR, -c
-                        Chrome source directory.
-                        
-  --aquarium-dir AQUARIUM_DIR, -a
-                        Aquarium source directory.
-                        
-  --build, -b           Rebuild before running tests.
-                        
-  --sync, -s            Fetch latest source code and rebuild before running tests.
-                        
-  --email, -e           Send the report by email.
-                        
-  --iris                Enable Iris driver. (Only available on Ubuntu/Mesa environment)
+run_tryjob.py [--job [webgl webgpu dawn angle gpu aquarium] ]
+              [--test-filter [TEST_FILTER ...] ]
+              [--result-dir RESULT_DIR]
+              [--chrome-dir CHROME_DIR]
+              [--dawn-dir DAWN_DIR]
+              [--angle-dir ANGLE_DIR]
+              [--aquarium-dir AQUARIUM_DIR]
+              [--target TARGET]
 ```
 
--------
+#### Specify the tryjobs to run: --job/--test-filter
+- Use the job type. You can select one or multiple jobs from the candidates, like `--job webgl dawn angle`.
+- Or use the test filter. You can specify one or multiple filters, the tests that contains the filter will be run, like `--test-filter webgl2 angle_end2end`. For detailed test names, please refer to following section.
+- If you don't specify tryjob with either way, all tryjobs except Aquarium will be run.
+- Please note that the test filter will suppress the job type.
 
-## run_gpu_test
+#### Specify the result directory: --result-dir
+- This is where to hold the test logs and test results. The final report *tryjob_report.txt* is generated here as well.
+- This is also the directory to run tests actually. So the coredumps or any intermediate files may be left here.
+- If you leave this argument empty, it will create a directory with timestamp (like YEAR_DATE_TIME_SECOND) under the *tryjob/* subdirectory of this repository.
 
-The most import arguments are `target`, `backend`, `type`, `dir`.
+#### Specify the source directry: --chrome-dir, --dawn-dir, --angle-dir
+- Chrome source is necessary to run WebGL/WebGPU/GPU tests.
+- Chrome source supports to run Dawn/ANGLE tests as well. But the test will prefer standalone Dawn/ANGLE source to Chrome source if you specified them both.
+- It's possible to specify sererated source directories for different type of tryjobs.
 
-The following command runs WebGL2 conformance test with ANGLE's OpenGL backend, the Chrome directory is `chromium`, the build directory is `out/Default`:
+#### Specify the target build directory under *out/*: --target
+- Please specify the basename only, like *Default* or *Release_x64*.
+- If you leave this argument empty, it assumes that your local build directory is *Default*.
+- If you want to specify sererated source directories, e.g. `--chrome-dir CHROME_DIR --angle-dir ANGLE_DIR`, please make sure the target build directories under these source directories are the same.
 
-> run_gpu_test webgl2 -b gl -t default -d ./chromium 
+#### Examples:
+- Run Dawn tests only, the target build directory is *Release*.  
+  `run_try_job.py --job dawn -dawn-dir DAWN_DIR --target Release`
+- Run WebGPU and Dawn tests with separated source directory  
+  `run_try_job.py --job webgpu dawn --chrome-dir CHROME_DIR --dawn-dir DAWN_DIR`
+- Run end2end tests of Dawn and ANGLE  
+  `run_try_job.py --test-filter angle_end2end dawn_end2end --chrome-dir CHROME_DIR`
+- Run WebGL and WebGPU tests and save the results to specific directory  
+  `run_try_job.py --job webgl webgpu --chrome-dir CHROME_DIR --result-dir RESULT_DIR`
 
-```
-run_gpu_test {webgl,webgl2,angle,fyi,aquarium}
-             [--backend {gl,vulkan,d3d9,d3d11,d3d9v,d3d11v,d3d12,desktop
-                         end2end,perf,pixel,dawn_d3d12,dawn_vulkan}]
-             [--type {release,debug,default}]
-             [--dir DIR]
-             [--log]
-             [--iris]
-             [--filter FILTER]
-             [--repeat REPEAT]
-             [--shard SHARD]
-             [--index INDEX]
+## Supporting tests
+- WebGL
+  - webgl_conformance_tests
+  - webgl_conformance_validating_tests
+  - webgl_conformance_gl_passthrough_tests
+  - webgl_conformance_d3d9_passthrough_tests
+  - webgl_conformance_vulkan_passthrough_tests
+  - webgl2_conformance_tests
+  - webgl2_conformance_validating_tests
+  - webgl2_conformance_gl_passthrough_tests
+- WebGPU
+  - webgpu_blink_web_tests
+- Dawn
+  - dawn_end2end_tests
+  - dawn_end2end_wire_tests
+  - dawn_end2end_validation_layers_tests
+  - dawn_perf_tests
+- ANGLE
+  - angle_end2end_tests
+  - angle_perf_tests
+- GPU
+  - gl_tests
+  - vulkan_tests
+- Aquarium
+  - aquarium_dawn_vulkan_tests
+  - aquarium_dawn_d3d12_tests
+  - aquarium_d3d12_tests
 
-positional arguments: {webgl,webgl2,angle,fyi,aquarium}
-                        Specify the test you want to run.
-                        
-                        webgl    :  WebGL conformance tests
-                        webgl2   :  WebGL2 conformance tests
-                        angle    :  ANGLE tests
-                        fyi      :  Miscellaneous less important tests
-                        aquarium :  Aquarium tests
-
-optional arguments:
-  --backend {gl,vulkan,d3d9,d3d11,d3d9v,d3d11v,d3d12,desktop,
-             end2end,perf,pixel,dawn_d3d12,dawn_vulkan}, -b
-                        Specify the backend. Not all targets are supporting all backends.
-                        Run default tests if the backend is not specified.
-                        
-                        [WebGL/WebGL2]
-                        gl      : opengl passthrough
-                        vulkan  : vulkan passthrough
-                        d3d9    : d3d9   passthrough
-                        d3d11   : d3d11  passthrough
-                        d3d9v   : d3d9   validating
-                        d3d11v  : d3d11  validating
-                        desktop : use desktop GL
-                        
-                        [ANGLE]
-                        end2end : end2end test
-                        perf    : performance test
-                        
-                        [FYI]
-                        pixel : pixel skia gold test
-                        
-                        [Aquarium]
-                        d3d12       : d3d12
-                        dawn_d3d12  : dawn d3d12
-                        dawn_vulkan : dawn vulkan
-
-  --type {release,debug,default}, -t
-                        Browser type. Default is 'release'.
-                        release/debug/default assume that the binaries are
-                        generated into out/Release or out/Debug or out/Default.
-                        
-  --dir DIR, -d         Chrome/Aquarium directory.
-                        
-  --log, -l             Print full test logs when test is running.
-                        
-  --iris                Enable Iris driver. (Only available on Ubuntu/Mesa environment)
-                        
-  --filter FILTER, -f
-                        Keywords to match the test cases. Devide with |.
-                        
-  --repeat REPEAT, -r
-                        The number of times to repeat running this test.
-                        If the number of shards is more than 1, the running sequence
-                        will be shard0 * N times, shard1 * N times ...
-                        
-  --shard SHARD, -s
-                        Total number of shards being used for this test. Default is 1.
-                        
-  --index INDEX, -i
-                        Shard index of this test.
-                        If the number of shards is more than 1 and this argument is not
-                        specified, all shards will be ran in sequence.
-```
---------
-## parse_result
-
-Parse test results and generate report
-
-```
-parse_result [{webgl,angle,fyi,aquarium}]
-             [--dir DIR] 
-
-positional arguments: {webgl,angle,fyi,aquarium}
-                        Specify the test results you want to parse.
-                        
-                        webgl    :  WebGL and WebGL2 conformance tests
-                        angle    :  ANGLE tests
-                        fyi      :  Miscellaneous less important tests
-                        aquarium :  Aquarium tests
-                        
-
-optional arguments:
-  --dir DIR, -d         The directory where the results locate in.
-```
-
-----------
-
-## build_chrome
-
-Chrome build tools
-
-```
-build_chrome [{sync,build,pack,rev}]
-             [--type {release,debug,default}]
-             [--dir DIR]
-             [--pack-dir PACK_DIR]
-
-positional arguments: {sync,build,pack,rev}
-                        Specify the command. Default is 'build'.
-                        Can specify multiple commands at the same time.
-                        
-                        sync   :  fetch latest source code
-                        build  :  build targets
-                        pack   :  package executables that can run independently
-                        rev    :  get Chrome revision
-
-optional arguments:
-  --type {release,debug,default}, -t
-                        Browser type. Default is 'release'.
-                        release/debug/default assume that the binaries are
-                        generated into out/Release or out/Debug or out/Default.
-                        
-  --dir DIR, -d         Chrome source directory.
-                        
-  --pack-dir PACK_DIR, -p
-                        Destnation directory, used by the command 'pack'.
-```
-
-----------
-
-## build_aquarium
-
-Aquarium build tools
-
-```
-build_aquarium [{sync,build,pack,rev}]
-               [--type {release,debug,default}]
-               [--dir DIR]
-               [--pack-dir PACK_DIR]
-
-positional arguments: {sync,build,pack,rev}
-                        Specify the command. Default is 'build'.
-                        Can specify multiple commands at the same time.
-                        
-                        sync   :  fetch latest source code
-                        build  :  build targets
-                        pack   :  package executables that can run independently
-                        rev    :  get the commit ID of Aquarium and Dawn
-                        
-
-optional arguments:
-  --type {release,debug,default}, -t
-                        Browser type. Default is 'release'.
-                        release/debug/default assume that the binaries are
-                        generated into out/Release or out/Debug or out/Default.
-                        
-  --dir DIR, -d DIR     Aquarium source directory.
-                        
-  --pack-dir PACK_DIR, -p
-                        Destnation directory, used by the command 'pack'.
-```
+## Miscellaneous
+- Add `gpu_test_tools/bin` to the `PATH` environment variable, then you can run commands directly in anywhere on both of Windows and Linux. For example, you can run `run_tryjob` instead of `python gpu_test_tools/run_tryjob.py`.
