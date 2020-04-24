@@ -20,21 +20,22 @@ PATTERN_DAWN_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./]+)$'
 PATTERN_DAWN_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./]+),.+$'
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
+TRYJOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'tryjob.json')
+
 def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Parse test results and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('target', nargs='*',
-      choices=['webgl', 'dawn', 'angle', 'gpu', 'aquarium'], default='webgl',
-      help='Specify the test results you want to parse. Default is \'webgl\'\n\n')
+  parser.add_argument('--test', '-t', nargs='*',
+      choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
+      default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
+      help='The test results to parse, you can specify multiple. Default is all except aquarium.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='The directory where the results locate in.\n\n')
   args = parser.parse_args()
 
-  if not isinstance(args.target, list):
-    args.target = [args.target]
-  if 'aquarium' in args.target and len(args.target) > 1:
-    raise Exception('Can not merge test result and perf result')
+  if 'aquarium' in args.test and len(args.test) > 1:
+    raise Exception('Can not merge aquarium result with other results')
 
   args.dir = path.abspath(args.dir)
   return args
@@ -235,6 +236,7 @@ def parse_aquarium_result_file(result_file):
 
 
 def merge_shard_result(test_suites):
+  config = read_json(TRYJOB_CONFIG)
   merged_result = {}
   for test_suite in test_suites:
     name = test_suite.name
@@ -242,14 +244,19 @@ def merge_shard_result(test_suites):
       name, ext = path.splitext(name)
       if not ext:
         break
+    test, backend = name.split('_', 1)
+    for key,value in config['tryjob'].items():
+      if value[0] == test and value[1] == backend:
+        name = key
+        break
 
     merged_result.setdefault(name, TestSuite(name))
-    merged_result[name].actual_passed.extend(test_suite.actual_passed)
-    merged_result[name].actual_failed.extend(test_suite.actual_failed)
-    merged_result[name].flaky_passed.extend(test_suite.flaky_passed)
-    merged_result[name].unexpected_passed.extend(test_suite.unexpected_passed)
-    merged_result[name].unexpected_failed.extend(test_suite.unexpected_failed)
-    merged_result[name].skipped.extend(test_suite.skipped)
+    merged_result[name].actual_passed += test_suite.actual_passed
+    merged_result[name].actual_failed += test_suite.actual_failed
+    merged_result[name].flaky_passed += test_suite.flaky_passed
+    merged_result[name].unexpected_passed += test_suite.unexpected_passed
+    merged_result[name].unexpected_failed += test_suite.unexpected_failed
+    merged_result[name].skipped += test_suite.skipped
 
   return sorted(merged_result.values(), key=lambda suite: suite.name)
 
@@ -299,7 +306,7 @@ def generate_test_report(test_suites):
 def main():
   args = parse_arguments()
 
-  if args.target == ['aquarium']:
+  if args.test == ['aquarium']:
     perf_results = []
     max_name_len = 0
     for item in list_file(args.dir):
@@ -321,17 +328,18 @@ def main():
     for item in list_file(args.dir):
       file_name = path.basename(item)
       test_suite = None
-      for target in args.target:
-        if file_name.startswith(target):
-          if target == 'webgl':
+      for test in args.test:
+        if file_name.startswith(test):
+          if test == 'webgl':
             if file_name.endswith('.json'):
               test_suite = parse_json_result_file(file_name)
-          elif target == 'dawn':
+          elif test == 'webgpu':
             if file_name.endswith('.json'):
               test_suite = parse_json_result_file(file_name)
-            elif file_name.endswith('.log'):
+          elif test == 'dawn':
+            if file_name.endswith('.log'):
               test_suite = parse_dawn_result_file(item)
-          elif target in ['angle', 'gpu']:
+          elif test in ['angle', 'gpu']:
             if file_name.endswith('.log'):
               test_suite = parse_gtest_result_file(item)
       if test_suite and not test_suite.IsEmpty():

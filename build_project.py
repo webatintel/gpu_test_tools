@@ -27,6 +27,10 @@ CHROME_BUILD_TARGETS = [
   'trace_processor_shell',
 ]
 
+CHROME_BUILD_TARGETS_LINUX = [
+  'minidump_stackwalk',
+]
+
 DAWN_BUILD_TARGETS = [
   'dawn_end2end_tests',
   'dawn_perf_tests',
@@ -73,6 +77,8 @@ CHROME_TARGET_DEPENDENCIES = {
     'image_diff',
     'content_shell',
     'trace_processor_shell',
+    'minidump_dump',
+    'minidump_stackwalk',
     'libangle_util.so',
   ],
 }
@@ -100,22 +106,22 @@ def random_string(size):
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
-      description='Build tools',
+      description='Build project',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('project', nargs='?',
       choices=['chrome', 'dawn', 'angle', 'aquarium', 'mesa'], default='chrome',
-      help='Specify the project. Default is \'chrome\'.\n\n')
+      help='The project to build. Default is "chrome".\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Project source directory.\n\n')
-  parser.add_argument('--type', '-t', nargs='*',
-      choices=['default', 'release', 'debug'], default='default',
-      help='Browser type. You can specify multiple types.\n'\
-           'Default is \'default\', build arguments are same as official bot.\n'\
-           'default/release/debug assume that the binaries are\n'\
-           'generated into out/Default or out/Release or out/Debug.\n\n')
+  parser.add_argument('--target', '-t', nargs='*',
+      choices=['Default', 'Release', 'Debug'], default=['Default'],
+      help='The target build directory under out/, you can specify multiple. Default is "Default".\n'\
+           'Default : For Chrome, the build arguments are same as official trybot.\n'\
+           '          For others, it\'s same as Release.\n'\
+           'Release : the release build.\n'\
+           'Debug   : the debug build.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
-      help='Fetch from origin and rebase current branch,\n'\
-           'then synchronize the dependencies before building.\n\n')
+      help='Fetch from origin and rebase to master, then synchronize the dependencies before building.\n\n')
   parser.add_argument('--pack', '-p',
       help='Package the binaries to a directory after building.\n'\
            'For mesa, it equals to --prefix.\n\n')
@@ -123,12 +129,9 @@ def parse_arguments():
       help='Package the binaries to a zip file after building.\n\n')
   args = parser.parse_args()
 
-  if not isinstance(args.type, list):
-    args.type = [args.type]
-
   if args.pack or args.zip:
-    if len(args.type) > 1:
-      raise Exception('Do not support to package multiple build types')
+    if len(args.target) > 1:
+      raise Exception('Do not support to package multiple targets')
     if not args.project in ['chrome', 'aquarium', 'mesa']:
       raise Exception('Do not support to package ' + args.project)
 
@@ -177,7 +180,7 @@ def build_chrome(args):
   build_args['proprietary_codecs'] = 'true'
   build_args['ffmpeg_branding'] = '"Chrome"'
 
-  if args.build_type == 'default':
+  if args.build_type == 'Default':
     build_args['is_debug'] = 'false'
     build_args['is_component_build'] = 'false'
     build_args['symbol_level'] = '1'
@@ -188,7 +191,7 @@ def build_chrome(args):
     build_args['is_component_build'] = 'true'
     build_args['enable_nacl'] = 'false'
     build_args['blink_symbol_level'] = '0'
-    if args.build_type == 'debug':
+    if args.build_type == 'Debug':
       build_args['is_debug'] = 'true'
       build_args['symbol_level'] = '2'
     else:
@@ -202,6 +205,9 @@ def build_chrome(args):
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir, env=env)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
+  targets = CHROME_BUILD_TARGETS
+  if is_linux():
+    targets += CHROME_BUILD_TARGETS_LINUX
   for target in CHROME_BUILD_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
@@ -210,7 +216,7 @@ def build_chrome(args):
 
 def build_dawn(args):
   build_args = {}
-  if args.build_type == 'debug':
+  if args.build_type == 'Debug':
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
@@ -227,7 +233,7 @@ def build_dawn(args):
 
 def build_angle(args):
   build_args = {}
-  if args.build_type == 'debug':
+  if args.build_type == 'Debug':
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
@@ -244,7 +250,7 @@ def build_angle(args):
 
 def build_aquarium(args):
   build_args = {}
-  if args.build_type == 'debug':
+  if args.build_type == 'Debug':
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
@@ -276,7 +282,7 @@ def build_mesa(args):
   build_args['shared-glapi'] = 'true'
 
   meson_cmd = ['meson', args.build_dir]
-  meson_cmd.extend(['-D%s=%s' % (key,value) for key,value in build_args.iteritems()])
+  meson_cmd += ['-D%s=%s' % (key,value) for key,value in build_args.iteritems()]
   execute_command(meson_cmd, dir=args.dir)
 
   build_cmd = ['ninja', '-C', args.build_dir]
@@ -359,7 +365,7 @@ def main():
     elif args.project != 'mesa':
       execute_command(['gclient', 'sync', '-D'], dir=args.dir)
 
-  for build_type in args.type:
+  for build_type in args.target:
     if args.project == 'mesa':
       args.build_dir = 'out'
       build_dir = path.join(args.dir, args.build_dir)

@@ -8,7 +8,7 @@
     "webgl2_conformance_tests"                  : ["webgl2", "d3d11", "win"],
     "webgl2_conformance_validating_tests"       : ["webgl2", "validating", "linux"],
     "webgl2_conformance_gl_passthrough_tests"   : ["webgl2", "gl", "win", "linux"],
-    "webgpu_blink_web_tests"                    : ["dawn", "blink", "win", "linux"],
+    "webgpu_blink_web_tests"                    : ["webgpu", "blink", "win", "linux"],
     "dawn_end2end_tests"                        : ["dawn", "end2end", "win", "linux"],
     "dawn_end2end_wire_tests"                   : ["dawn", "end2end_wire", "win", "linux"],
     "dawn_end2end_validation_layers_tests"      : ["dawn", "end2end_validation", "win", "linux"],
@@ -42,7 +42,7 @@
     "admin": [
       "lin.sun@intel.com"
     ],
-    "report": [
+    "tryjob": [
       "lin.sun@intel.com",
       "yang.gu@intel.com"
     ],
