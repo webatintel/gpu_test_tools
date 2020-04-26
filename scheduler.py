@@ -11,6 +11,7 @@ from os import path
 TEST_TIME = '20:00'
 
 FILE_DIR= path.dirname(path.abspath(__file__))
+BIN_DIR= path.join(FILE_DIR, 'bin')
 WORKSPACE_DIR = path.abspath(path.join(FILE_DIR, '..', '..'))
 TEST_DIR = path.join(WORKSPACE_DIR, 'gpu_test')
 PROJECT_DIR = path.join(WORKSPACE_DIR, 'project')
@@ -29,13 +30,13 @@ def run_try_job():
   current_time = datetime.datetime.now().strftime('%Y_%m%d_%H%M')
   test_dir = path.join(TEST_DIR, current_time)
   os.makedirs(test_dir)
-  execute_command(['run_tryjob',
-                   '--job', 'webgl', 'dawn', 'angle', 'gpu', 'aquarium',
+  execute_command([path.join(BIN_DIR, 'run_tryjob'),
+                   '--job', 'webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium',
                    '--chrome-dir', path.join(PROJECT_DIR, 'chromium'),
                    '--aquarium-dir', path.join(PROJECT_DIR, 'aquarium'),
                    '--update', '--email'],
                   test_dir)
-  execute_command(['check_tryjob',
+  execute_command([path.join(BIN_DIR, 'check_tryjob'),
                    '--dir', path.join(PROJECT_DIR, 'chromium'),
                    '--email'])
 

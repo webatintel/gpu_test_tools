@@ -43,10 +43,13 @@
       "lin.sun@intel.com"
     ],
     "tryjob": [
-      "lin.sun@intel.com"
+      "lin.sun@intel.com",
+      "yang.gu@intel.com"
     ],
     "aquarium": [
-      "lin.sun@intel.com"
+      "lin.sun@intel.com",
+      "yang.gu@intel.com",
+      "jiajie.hu@intel.com"
     ]
   },
   "aquarium_average_fps": {

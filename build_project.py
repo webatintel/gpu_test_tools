@@ -11,7 +11,6 @@ from util.base_util import *
 from util.file_util import *
 from util.system_util import *
 
-PYTHON_CMD = 'python'
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
 CHROME_BUILD_TARGETS = [
@@ -195,7 +194,7 @@ def build_chrome(args):
 
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
-  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir, env=env)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
@@ -215,7 +214,7 @@ def build_dawn(args):
   else:
     build_args['is_debug'] = 'false'
 
-  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
@@ -232,7 +231,7 @@ def build_angle(args):
   else:
     build_args['is_debug'] = 'false'
 
-  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
@@ -251,7 +250,7 @@ def build_aquarium(args):
   if is_linux():
     build_args['dawn_enable_opengl'] = 'false'
 
-  arg_list = ['%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
@@ -276,7 +275,7 @@ def build_mesa(args):
   build_args['shared-glapi'] = 'true'
 
   meson_cmd = ['meson', args.build_dir]
-  meson_cmd += ['-D%s=%s' % (key,value) for key,value in build_args.iteritems()]
+  meson_cmd += ['-D%s=%s' % (key,value) for key,value in build_args.items()]
   execute_command(meson_cmd, dir=args.dir)
 
   build_cmd = ['ninja', '-C', args.build_dir]

@@ -38,7 +38,7 @@ def parse_arguments():
            'aquarium :  Aquarium performance tests\n\n')
   parser.add_argument('--test-filter', '-f', nargs='*',
       help='Filter the tests that contains the keyword, you can specify multiple.\n\n')
-  parser.add_argument('--result-dir',
+  parser.add_argument('--result-dir', '-d',
       help='Where to run test and to save the result.\n'\
            'If not specified, it will create a directory with timestamp under the tryjob/ subdirectory of this repository\n\n')
   parser.add_argument('--chrome-dir',

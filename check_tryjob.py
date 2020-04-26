@@ -94,7 +94,7 @@ def find_script_tests(items):
 def find_intel_tryjob(bot_file):
   tryjobs = []
   bot_dict = read_json(bot_file)
-  for key,value in bot_dict.iteritems():
+  for key,value in bot_dict.items():
     name = key.lower()
     if (name.find('intel') >= 0 and name.find('mac') < 0 and
         name.find('ozone') < 0 and name.find('deqp') < 0 and

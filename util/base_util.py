@@ -8,13 +8,15 @@ import smtplib
 import subprocess
 import sys
 
-from file_util import *
+from .file_util import *
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os import path
 from subprocess import CalledProcessError
+
+PYTHON_CMD = 'vpython'
 
 EMAIL_SENDER = 'gpu_test@wp-40.sh.intel.com'
 SMTP_SERVER = '10.239.47.103'
@@ -92,7 +94,7 @@ def execute_command(cmd, print_log=True, return_log=False, save_log=None, dir=No
         shell=(sys.platform=='win32'), cwd=dir, env=env)
 
     for line in iter(process.stdout.readline, b''):
-      line = line.strip()
+      line = line.decode().strip()
       if (line.startswith('Unhandled inspector message') or
           line.startswith('WARNING:root:Unhandled inspector message')):
         continue
@@ -101,29 +103,29 @@ def execute_command(cmd, print_log=True, return_log=False, save_log=None, dir=No
       if print_log and is_ninja_command:
         match = re_match(PATTERN_NINJA_PROGRESS, line)
         if match:
-          progress = int(match.group(1)) * 100 / int(match.group(2))
+          progress = int(match.group(1)) * 100 // int(match.group(2))
           if progress > last_progress:
             line = '['
-            for i in range(0, progress/2):
+            for i in range(0, progress//2):
               line += '='
             line += '>'
-            for i in range(progress/2, 50):
+            for i in range(progress//2, 50):
               line += ' '
             line += '] %d%%' % progress
             sys.stdout.write('\r' + line)
 
             current_time = get_currenttime()
             total_time = current_time - start_time
-            sys.stdout.write('    Total time: %dmin' % (total_time.total_seconds() / 60))
+            sys.stdout.write('    Total time: %dmin' % (total_time.total_seconds() // 60))
             if progress == 100:
               sys.stdout.write('\n')
             else:
               time_interval = current_time - last_progress_time
-              progress_times.append(time_interval.total_seconds() / (progress - last_progress))
+              progress_times.append(time_interval.total_seconds() // (progress - last_progress))
               if len(progress_times) > 10:
                 progress_times.pop(0)
-              time_remaning =  sum(progress_times) / len(progress_times) * (100 - progress)
-              sys.stdout.write('    Time remaining: %dmin' % (time_remaning / 60))
+              time_remaning =  sum(progress_times) // len(progress_times) * (100 - progress)
+              sys.stdout.write('    Time remaining: %dmin' % (time_remaning // 60))
               last_progress = progress
               last_progress_time = current_time
             sys.stdout.flush()

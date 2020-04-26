@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 base_dir=$(dirname "$0")
-PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 exec python "$base_dir/../run_tryjob.py" "$@"
+PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 exec python3 "$base_dir/../run_tryjob.py" "$@"

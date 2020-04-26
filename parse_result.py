@@ -129,7 +129,7 @@ def parse_json_result(key, value):
 
 
 def parse_json_result_dict(result_dict, test_suite, prefix=''):
-  for key,value in result_dict.iteritems():
+  for key,value in result_dict.items():
     if 'actual' in value and 'expected' in value:
       test_suite.AddResult(parse_json_result(prefix + key, value))
     else:
@@ -323,7 +323,7 @@ def main():
       name_format = '{:<%d}' % (max_name_len+2)
       for result in perf_results:
         report += '%s%d\n' % (name_format.format(result.name), result.average_fps)
-      print report,
+      print(report, end='')
   else:
     test_suites = []
     for result_type in args.type:
@@ -346,7 +346,7 @@ def main():
       test_suites = merge_shard_result(test_suites)
       report = generate_test_report(test_suites)
       if report:
-        print report,
+        print(report, end='')
 
   return 0
 

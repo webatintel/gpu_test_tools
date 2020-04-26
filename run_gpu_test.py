@@ -9,7 +9,6 @@ from util.file_util import *
 from util.system_util import *
 from os import path
 
-PYTHON_CMD = 'vpython'
 ANGLE_END2END_TEST_CMD = 'angle_end2end_tests'
 ANGLE_PERF_TEST_CMD = 'angle_perftests'
 DAWN_END2END_TEST_CMD = 'dawn_end2end_tests'

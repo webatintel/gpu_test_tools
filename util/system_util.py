@@ -4,9 +4,9 @@ import os
 import socket
 import sys
 
-from base_util import *
+from .base_util import *
 try:
-  from _winreg import *
+  from winreg import *
 except ImportError:
   pass
 
