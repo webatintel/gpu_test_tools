@@ -117,9 +117,9 @@ def find_intel_tryjob(bot_file):
         job.platform = platform
         job.gpu = match.group(2).replace(' ', '-')
         if 'gtest_tests' in value:
-          job.tests.extend(find_gtest_tests(value['gtest_tests']))
+          job.tests += find_gtest_tests(value['gtest_tests'])
         if 'isolated_scripts' in value:
-          job.tests.extend(find_script_tests(value['isolated_scripts']))
+          job.tests += find_script_tests(value['isolated_scripts'])
         tryjobs.append(job)
   return tryjobs
 
@@ -135,7 +135,7 @@ def main():
 
   tryjobs = []
   for bot_file in OFFICIAL_TRYJOB_CONFIG:
-    tryjobs.extend(find_intel_tryjob(path.join(args.dir, bot_file)))
+    tryjobs += find_intel_tryjob(path.join(args.dir, bot_file))
   if not tryjobs:
     handle_error('Failed to find intel try bot')
 

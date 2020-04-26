@@ -55,7 +55,6 @@ def get_win_gpu_info():
             pass
   return None, None
 
-
 def get_linux_gpu_info():
   gpu = None
   ret = execute_command(['glxinfo'], print_log=False, return_log=True)

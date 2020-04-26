@@ -30,6 +30,7 @@ def run_try_job():
   test_dir = path.join(TEST_DIR, current_time)
   os.makedirs(test_dir)
   execute_command(['run_tryjob',
+                   '--job', 'webgl', 'dawn', 'angle', 'gpu', 'aquarium',
                    '--chrome-dir', path.join(PROJECT_DIR, 'chromium'),
                    '--aquarium-dir', path.join(PROJECT_DIR, 'aquarium'),
                    '--update', '--email'],

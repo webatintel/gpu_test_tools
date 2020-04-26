@@ -8,6 +8,7 @@ import smtplib
 import subprocess
 import sys
 
+from file_util import *
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -53,9 +54,11 @@ def send_email(receivers, subject, body='', attached_files=[]):
   message.attach(MIMEText(body, 'plain'))
 
   for file_name in attached_files:
+    content = read_file(file_name)
+    if not content:
+      continue
     attachment = MIMEBase('application', "octet-stream")
-    with open(file_name, 'r') as f:
-      attachment.set_payload(f.read())
+    attachment.set_payload(content)
     encoders.encode_base64(attachment)
     attachment.add_header('Content-Disposition', 'attachment; filename="%s"' % path.basename(file_path))
     message.attach(attachment)
@@ -68,8 +71,7 @@ def send_email(receivers, subject, body='', attached_files=[]):
     print(e)
 
 
-def execute_command(cmd, print_log=True, return_log=False, save_log=None,
-                    dir=None, env=None):
+def execute_command(cmd, print_log=True, return_log=False, save_log=None, dir=None, env=None):
   log_lines = []
   log_file = None
   is_ninja_command = cmd[0].find('ninja') >= 0
@@ -82,8 +84,7 @@ def execute_command(cmd, print_log=True, return_log=False, save_log=None,
   try:
     if print_log:
       print('\n[%s] \'%s\' in \'%s\'' % 
-          (get_currenttime('%Y/%m/%d %H:%M:%S'),
-           ' '.join(cmd),
+          (get_currenttime('%Y/%m/%d %H:%M:%S'), ' '.join(cmd),
            path.abspath(dir) if dir else os.getcwd()))
 
     process = subprocess.Popen(cmd,
@@ -143,13 +144,15 @@ def execute_command(cmd, print_log=True, return_log=False, save_log=None,
   except Exception as e:
     if print_log:
       print(e)
-    if return_log:
-      log_lines.extend(str(e).split('\n'))
     if save_log:
       if not log_file:
         log_file = open(save_log, 'w')
       log_file.write(str(e))
-    raise CalledProcessError(1, cmd, '\n'.join(log_lines))
+    if return_log:
+      log_lines += str(e).split('\n')
+      raise CalledProcessError(1, cmd, '\n'.join(log_lines))
+    else:
+      raise CalledProcessError(1, cmd, str(e))
   finally:
     if log_file:
       log_file.close()
@@ -171,5 +174,4 @@ def get_chrome_revision(chrome_dir, back_level=0):
         return match.group(1)
   except CalledProcessError:
     pass
-
   return ''

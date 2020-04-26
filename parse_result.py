@@ -26,7 +26,7 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Parse test results and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--test', '-t', nargs='*',
+  parser.add_argument('--type', '-t', nargs='*',
       choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
       default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
       help='The test results to parse, you can specify multiple. Default is all except aquarium.\n\n')
@@ -34,7 +34,7 @@ def parse_arguments():
       help='The directory where the results locate in.\n\n')
   args = parser.parse_args()
 
-  if 'aquarium' in args.test and len(args.test) > 1:
+  if 'aquarium' in args.type and len(args.type) > 1:
     raise Exception('Can not merge aquarium result with other results')
 
   args.dir = path.abspath(args.dir)
@@ -244,10 +244,11 @@ def merge_shard_result(test_suites):
       name, ext = path.splitext(name)
       if not ext:
         break
-    test, backend = name.split('_', 1)
-    for key,value in config['tryjob'].items():
-      if value[0] == test and value[1] == backend:
-        name = key
+    name = name.replace('_test', '')
+    job_type, backend = name.split('_', 1)
+    for tags in config['tryjob']:
+      if tags[1] == job_type and tags[2] == backend:
+        name = tags[0]
         break
 
     merged_result.setdefault(name, TestSuite(name))
@@ -306,13 +307,13 @@ def generate_test_report(test_suites):
 def main():
   args = parse_arguments()
 
-  if args.test == ['aquarium']:
+  if args.type == ['aquarium']:
     perf_results = []
     max_name_len = 0
-    for item in list_file(args.dir):
-      file_name = path.basename(item)
+    for file_name in list_file(args.dir):
+      file_name = path.basename(file_name)
       if file_name.startswith('aquarium') and file_name.endswith('.log'):
-        result = parse_aquarium_result_file(item)
+        result = parse_aquarium_result_file(file_name)
         if result and result.average_fps > 0:
           perf_results.append(result)
           max_name_len = max(max_name_len, len(result.name))
@@ -325,25 +326,21 @@ def main():
       print report,
   else:
     test_suites = []
-    for item in list_file(args.dir):
-      file_name = path.basename(item)
-      test_suite = None
-      for test in args.test:
-        if file_name.startswith(test):
-          if test == 'webgl':
-            if file_name.endswith('.json'):
-              test_suite = parse_json_result_file(file_name)
-          elif test == 'webgpu':
-            if file_name.endswith('.json'):
-              test_suite = parse_json_result_file(file_name)
-          elif test == 'dawn':
-            if file_name.endswith('.log'):
-              test_suite = parse_dawn_result_file(item)
-          elif test in ['angle', 'gpu']:
-            if file_name.endswith('.log'):
-              test_suite = parse_gtest_result_file(item)
-      if test_suite and not test_suite.IsEmpty():
-        test_suites.append(test_suite)
+    for result_type in args.type:
+      for file_name in list_file(args.dir):
+        file_name = path.basename(file_name)
+        test_suite = None
+        if result_type in ['webgl', 'webgpu']:
+          if file_name.startswith(result_type) and file_name.endswith('.json'):
+            test_suite = parse_json_result_file(file_name)
+        elif result_type in ['angle', 'gpu']:
+          if file_name.startswith(result_type) and file_name.endswith('.log'):
+            test_suite = parse_gtest_result_file(file_name)
+        elif result_type == 'dawn':
+          if file_name.startswith('dawn') and file_name.endswith('.log'):
+            test_suite = parse_dawn_result_file(file_name)
+        if test_suite and not test_suite.IsEmpty():
+          test_suites.append(test_suite)
 
     if test_suites:
       test_suites = merge_shard_result(test_suites)

@@ -1,26 +1,26 @@
 {
-  "tryjob": {
-    "webgl_conformance_tests"                   : ["webgl", "d3d11", "win"],
-    "webgl_conformance_validating_tests"        : ["webgl", "validating", "linux"],
-    "webgl_conformance_gl_passthrough_tests"    : ["webgl", "gl", "win", "linux"],
-    "webgl_conformance_d3d9_passthrough_tests"  : ["webgl", "d3d9", "win"],
-    "webgl_conformance_vulkan_passthrough_tests": ["webgl", "vulkan", "win", "linux"],
-    "webgl2_conformance_tests"                  : ["webgl2", "d3d11", "win"],
-    "webgl2_conformance_validating_tests"       : ["webgl2", "validating", "linux"],
-    "webgl2_conformance_gl_passthrough_tests"   : ["webgl2", "gl", "win", "linux"],
-    "webgpu_blink_web_tests"                    : ["webgpu", "blink", "win", "linux"],
-    "dawn_end2end_tests"                        : ["dawn", "end2end", "win", "linux"],
-    "dawn_end2end_wire_tests"                   : ["dawn", "end2end_wire", "win", "linux"],
-    "dawn_end2end_validation_layers_tests"      : ["dawn", "end2end_validation", "win", "linux"],
-    "dawn_perf_tests"                           : ["dawn", "perf", "win", "linux"],
-    "angle_end2end_tests"                       : ["angle", "end2end", "win", "linux"],
-    "angle_perf_tests"                          : ["angle", "perf", "win", "linux"],
-    "gl_tests"                                  : ["gpu", "gl", "win", "linux"],
-    "vulkan_tests"                              : ["gpu", "vulkan", "win", "linux"],
-    "aquarium_dawn_vulkan_tests"                : ["aquarium", "dawn_vulkan", "win", "linux"],
-    "aquarium_dawn_d3d12_tests"                 : ["aquarium", "dawn_d3d12", "win"],
-    "aquarium_d3d12_tests"                      : ["aquarium", "d3d12", "win"]
-  },
+  "tryjob": [
+    ["webgl_conformance_tests",                    "webgl", "d3d11", "win"],
+    ["webgl_conformance_validating_tests",         "webgl", "validating", "linux"],
+    ["webgl_conformance_gl_passthrough_tests",     "webgl", "gl", "win", "linux"],
+    ["webgl_conformance_d3d9_passthrough_tests",   "webgl", "d3d9", "win"],
+    ["webgl_conformance_vulkan_passthrough_tests", "webgl", "vulkan", "win", "linux"],
+    ["webgl2_conformance_tests",                   "webgl2", "d3d11", "win"],
+    ["webgl2_conformance_validating_tests",        "webgl2", "validating", "linux"],
+    ["webgl2_conformance_gl_passthrough_tests",    "webgl2", "gl", "win", "linux"],
+    ["webgpu_blink_web_tests",                     "webgpu", "blink", "win", "linux"],
+    ["dawn_end2end_tests",                         "dawn", "end2end", "win", "linux"],
+    ["dawn_end2end_wire_tests",                    "dawn", "end2end_wire", "win", "linux"],
+    ["dawn_end2end_validation_layers_tests",       "dawn", "end2end_validation", "win", "linux"],
+    ["dawn_perf_tests",                            "dawn", "perf", "win", "linux"],
+    ["angle_end2end_tests",                        "angle", "end2end", "win", "linux"],
+    ["angle_perf_tests",                           "angle", "perf", "win", "linux"],
+    ["gl_tests",                                   "gpu", "gl", "win", "linux"],
+    ["vulkan_tests",                               "gpu", "vulkan", "win", "linux"],
+    ["aquarium_dawn_vulkan_tests",                 "aquarium", "dawn_vulkan", "win", "linux"],
+    ["aquarium_dawn_d3d12_tests",                  "aquarium", "dawn_d3d12", "win"],
+    ["aquarium_d3d12_tests",                       "aquarium", "d3d12", "win"]
+  ],
   "tryjob_shards": {
     "webgl" : 2,
     "webgl2": 20,
@@ -43,14 +43,10 @@
       "lin.sun@intel.com"
     ],
     "tryjob": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com"
+      "lin.sun@intel.com"
     ],
     "aquarium": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com",
-      "jiajie.hu@intel.com",
-      "jiawei.shao@intel.com"
+      "lin.sun@intel.com"
     ]
   },
   "aquarium_average_fps": {

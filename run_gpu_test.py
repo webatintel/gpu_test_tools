@@ -34,7 +34,7 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description='GPU test tools\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--test', '-t', required=True,
+  parser.add_argument('type',
       choices=['webgl', 'webgl2', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
       help='The test to run.\n\n'\
            'webgl    :  WebGL conformance tests\n'\
@@ -72,7 +72,7 @@ def parse_arguments():
            'dawn_vulkan : dawn vulkan\n'\
            'dawn_d3d12  : dawn d3d12\n'\
            'd3d12       : d3d12\n\n')
-  parser.add_argument('--target', default='Default',
+  parser.add_argument('--target', '-t', default='Default',
       help='The target build directory under out/. Default is \'Default\'.\n\n')
   parser.add_argument('--dir', '-d', default='.',
       help='Project source directory.\n\n')
@@ -90,35 +90,37 @@ def parse_arguments():
       help='Shard index of this test.\n'\
            'If the number of shards is more than 1 and this argument is not\n'\
            'specified, all shards will be ran in sequence.\n\n')
+  parser.add_argument('--dry-run', action='store_true',
+      help='Go through the process but do not run tests actually.\n\n')
   args, extra_args = parser.parse_known_args()
 
-  if args.test.startswith('webgl'):
+  if args.type.startswith('webgl'):
     if not args.backend in ['validating', 'gl', 'vulkan', 'd3d9', 'd3d11']:
       raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test == 'webgpu':
+  elif args.type == 'webgpu':
     if not args.backend in ['blink']:
       raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test == 'dawn':
+  elif args.type == 'dawn':
     if not args.backend in ['end2end', 'end2end_wire', 'end2end_validation', 'perf']:
       raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test == 'angle':
+  elif args.type == 'angle':
     if not args.backend in ['end2end', 'perf']:
       raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test == 'gpu':
+  elif args.type == 'gpu':
     if not args.backend in ['gl', 'vulkan']:
       raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test == 'aquarium':
+  elif args.type == 'aquarium':
     if not args.backend in ['dawn_vulkan', 'dawn_d3d12', 'd3d12']:
       raise Exception('Unsupported backend: ' + args.backend)
 
   if args.filter:
-    if (args.test == 'aquarium' or args.test == 'webgpu'
-        or (args.test == 'angle' and args.backend == 'end2end')):
-      raise Exception('Do not support filter for %s/%s' % (args.test, args.backend))
+    if (args.type == 'aquarium' or args.type == 'webgpu'
+        or (args.type == 'angle' and args.backend == 'end2end')):
+      raise Exception('Do not support filter for %s/%s' % (args.type, args.backend))
 
   if args.shard > 1:
-    if args.test == 'aquarium':
-      raise Exception('Do not support shard for ' + args.test)
+    if args.type == 'aquarium':
+      raise Exception('Do not support shard for ' + args.type)
 
   if args.shard > 1 and args.filter:
     raise Exception('Can not specify shard and filter together')
@@ -142,13 +144,13 @@ def generate_webgl_arguments(args):
   total_args = ['--show-stdout', '--passthrough', '-v',
                 '--browser=' + args.target.lower(),
                 '--retry-only-retry-on-failure-tests']
-  if args.test == 'webgl2':
+  if args.type == 'webgl2':
     total_args += ['--webgl-conformance-version=2.0.1',
                    '--read-abbreviated-json-results-from=' + path.join(args.dir, WEBGL2_ABBREVIATED_RESULT)]
 
   browser_args = ['--disable-backgrounding-occluded-windows']
   if not is_win():
-    browser_args.append('--enable-logging=stderr')
+    browser_args += ['--enable-logging=stderr']
   config = read_json(TRYJOB_CONFIG)
   browser_args += config['tryjob_args']['webgl_'+args.backend]
   total_args.append('--extra-browser-args=' + ' '.join(browser_args))
@@ -188,23 +190,23 @@ def generate_gtest_arguments(args):
                    '--test-launcher-print-test-stdio=always',
                    '--test-launcher-jobs=1',
                    '--test-launcher-retry-limit=0']
-    if args.test == 'angle':
-      total_args.append('--one-frame-only')
-    elif args.test == 'webgpu':
-      total_args.append('--override-steps=1')
+    if args.type == 'angle':
+      total_args += ['--one-frame-only']
+    elif args.type == 'webgpu':
+      total_args += ['--override-steps=1']
   elif args.backend.startswith('end2end'):
     total_args += ['--use-gpu-in-tests',
                    '--test-launcher-retry-limit=0']
     if args.backend == 'end2end_wire':
-      total_args.append('--use-wire')
+      total_args += ['--use-wire']
     elif args.backend == 'end2end_validation':
-      total_args.append('--enable-backend-validation')
-    elif args.test == 'angle':
-      total_args['--test-launcher-bot-mode',
-                 '--cfi-diag=0',
-                 '--test-launcher-batch-limit=256',
-                 '--gtest_filter=-*Vulkan_SwiftShader*']
-  elif args.test == 'gpu':
+      total_args += ['--enable-backend-validation']
+    elif args.type == 'angle':
+      total_args += ['--test-launcher-bot-mode',
+                     '--cfi-diag=0',
+                     '--test-launcher-batch-limit=256',
+                     '--gtest_filter=-*Vulkan_SwiftShader*']
+  elif args.type == 'gpu':
     total_args += ['--use-gpu-in-tests',
                    '--test-launcher-bot-mode',
                    '--cfi-diag=0']
@@ -249,8 +251,11 @@ def execute_shard(cmd, args):
     print(log_name + postfix)
 
     new_cmd = cmd[:]
-    if args.test.startswith('webgl') or args.test == 'webgpu':
+    if args.type.startswith('webgl') or args.type == 'webgpu':
       new_cmd.append('--write-full-results-to=' + result_file)
+    if args.dry_run:
+      print(' '.join(new_cmd))
+      continue
     try:
       execute_command(new_cmd, print_log=args.log, return_log=False, save_log=log_file, env=env)
     except CalledProcessError:
@@ -260,31 +265,31 @@ def execute_shard(cmd, args):
 def main():
   args, extra_args = parse_arguments()
 
-  if args.test.startswith('webgl'):
+  if args.type.startswith('webgl'):
     cmd = [PYTHON_CMD, path.join(args.dir, GPU_TEST_SCRIPT), 'webgl_conformance']
     cmd += generate_webgl_arguments(args)
     total_shards = '--total-shards'
     shard_index = '--shard-index'
-  elif args.test == 'webgpu':
+  elif args.type == 'webgpu':
     cmd = [PYTHON_CMD, path.join(args.dir, BLINK_TEST_SCRIPT)]
     cmd += generate_webgpu_arguments(args)
     total_shards = '--total-shards'
     shard_index = '--shard-index'
-  elif args.test == 'aquarium':
+  elif args.type == 'aquarium':
     cmd = [path.join(args.dir, args.build_dir, AQUARIUM_TEST_CMD)]
     cmd += generate_aquarium_arguments(args)
   else:
-    if args.test == 'dawn':
+    if args.type == 'dawn':
       if args.backend.startswith('end2end'):
         cmd = [path.join(args.dir, args.build_dir, DAWN_END2END_TEST_CMD)]
       elif args.backend == 'perf':
         cmd = [path.join(args.dir, args.build_dir, DAWN_PERF_TEST_CMD)]
-    elif args.test == 'angle':
+    elif args.type == 'angle':
       if args.backend == 'end2end':
         cmd = [path.join(args.dir, args.build_dir, ANGLE_END2END_TEST_CMD)]
       elif args.backend == 'perf':
         cmd = [path.join(args.dir, args.build_dir, ANGLE_PERF_TEST_CMD)]
-    elif args.test == 'gpu':
+    elif args.type == 'gpu':
       if args.backend == 'gl':
         cmd = [path.join(args.dir, args.build_dir, GL_TEST_CMD)]
       elif args.backend == 'vulkan':
@@ -294,8 +299,8 @@ def main():
     shard_index = '--test-launcher-shard-index'
   cmd += extra_args
 
-  args.log_file = '%s_%s.log' % (args.test, args.backend)
-  args.result_file = '%s_%s.json' % (args.test, args.backend)
+  args.log_file = '%s_%s.log' % (args.type, args.backend)
+  args.result_file = '%s_%s.json' % (args.type, args.backend)
 
   if args.shard == 1:
     execute_shard(cmd, args)

@@ -116,10 +116,10 @@ def parse_arguments():
   parser.add_argument('--target', '-t', nargs='*',
       choices=['Default', 'Release', 'Debug'], default=['Default'],
       help='The target build directory under out/, you can specify multiple. Default is "Default".\n'\
-           'Default : For Chrome, the build arguments are same as official trybot.\n'\
-           '          For others, it\'s same as Release.\n'\
-           'Release : the release build.\n'\
-           'Debug   : the debug build.\n\n')
+           'Default(any suffix) : For Chrome, the build arguments are same as official trybot.\n'\
+           '                      For others, it\'s same as release build.\n'\
+           'Debug(any suffix)   : the debug build.\n'\
+           'any other targets   : the release build.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
       help='Fetch from origin and rebase to master, then synchronize the dependencies before building.\n\n')
   parser.add_argument('--pack', '-p',
@@ -145,12 +145,9 @@ def parse_arguments():
 
 def sync_aquarium(args):
   dawn_dir = path.join(args.dir, 'third_party', 'dawn')
-  execute_command(['git', 'fetch', 'origin'],
-                  dir=dawn_dir)
-  execute_command(['git', 'rebase', 'origin/master'],
-                  dir=dawn_dir)
-  log = execute_command(['git', 'log', '-1'], print_log=False, return_log=True,
-                        dir=dawn_dir)
+  execute_command(['git', 'fetch', 'origin'], dir=dawn_dir)
+  execute_command(['git', 'rebase', 'origin/master'], dir=dawn_dir)
+  log = execute_command(['git', 'log', '-1'], print_log=False, return_log=True, dir=dawn_dir)
   dawn_revision = None
   for line in log.splitlines():
     match = re_match(PATTERN_COMMIT, line)
@@ -158,7 +155,7 @@ def sync_aquarium(args):
       dawn_revision = match.group(1)
       break
   if not dawn_revision:
-    raise Exception('Unknown dawn revision')
+    raise Exception('Dawn revision not found')
 
   deps_file = path.join(args.dir, 'DEPS')
   deps_contents = []
@@ -169,18 +166,15 @@ def sync_aquarium(args):
       deps_contents.append('  \'dawn_revision\': \'' + dawn_revision + '\',')
     else:
       deps_contents.append(line)
-  write_file(deps_file, '\n'.join(deps_contents))
-
-  execute_command(['gclient', 'sync', '-D'],
-                  dir=args.dir)
+  write_line(deps_file, deps_contents)
+  execute_command(['gclient', 'sync', '-D'], dir=args.dir)
 
 
 def build_chrome(args):
   build_args = {}
   build_args['proprietary_codecs'] = 'true'
   build_args['ffmpeg_branding'] = '"Chrome"'
-
-  if args.build_type == 'Default':
+  if args.build_type.startswith('default'):
     build_args['is_debug'] = 'false'
     build_args['is_component_build'] = 'false'
     build_args['symbol_level'] = '1'
@@ -191,7 +185,7 @@ def build_chrome(args):
     build_args['is_component_build'] = 'true'
     build_args['enable_nacl'] = 'false'
     build_args['blink_symbol_level'] = '0'
-    if args.build_type == 'Debug':
+    if args.build_type.startswith('debug'):
       build_args['is_debug'] = 'true'
       build_args['symbol_level'] = '2'
     else:
@@ -208,7 +202,7 @@ def build_chrome(args):
   targets = CHROME_BUILD_TARGETS
   if is_linux():
     targets += CHROME_BUILD_TARGETS_LINUX
-  for target in CHROME_BUILD_TARGETS:
+  for target in targets:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir, env=env)
@@ -216,7 +210,7 @@ def build_chrome(args):
 
 def build_dawn(args):
   build_args = {}
-  if args.build_type == 'Debug':
+  if args.build_type.startswith('debug'):
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
@@ -233,7 +227,7 @@ def build_dawn(args):
 
 def build_angle(args):
   build_args = {}
-  if args.build_type == 'Debug':
+  if args.build_type.startswith('debug'):
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
@@ -250,7 +244,7 @@ def build_angle(args):
 
 def build_aquarium(args):
   build_args = {}
-  if args.build_type == 'Debug':
+  if args.build_type.startswith('debug'):
     build_args['is_debug'] = 'true'
   else:
     build_args['is_debug'] = 'false'
@@ -378,8 +372,8 @@ def main():
       else:
         args.prefix = ''
     else:
-      args.build_type = build_type
-      args.build_dir = path.join('out', build_type.title())
+      args.build_type = build_type.lower()
+      args.build_dir = path.join('out', build_type)
 
     if args.project == 'chrome':
       build_chrome(args)

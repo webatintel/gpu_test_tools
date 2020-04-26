@@ -7,9 +7,9 @@ import zipfile
 
 from os import path
 
-def mkdir(dir):
+def mkdir(dir_name):
   try:
-    os.makedirs(dir)
+    os.makedirs(dir_name)
   except OSError:
     pass
 
@@ -61,6 +61,11 @@ def read_line(file_name):
         break
       yield line
 
+def write_line(file_name, lines):
+  if lines:
+    with open(file_name, 'w') as f:
+      f.write('\n'.join(lines))
+
 def read_file(file_name):
   try:
     with open(file_name, 'r') as f:
@@ -73,8 +78,8 @@ def write_file(file_name, content):
     with open(file_name, 'w') as f:
       f.write(content)
 
-def list_file(dir):
-  for item in os.listdir(dir):
-    file_name = path.join(dir, item)
+def list_file(dir_name):
+  for item in os.listdir(dir_name):
+    file_name = path.join(dir_name, item)
     if path.isfile(file_name):
       yield file_name
