@@ -12,9 +12,7 @@ TEST_TIME = '20:00'
 
 FILE_DIR= path.dirname(path.abspath(__file__))
 BIN_DIR= path.join(FILE_DIR, 'bin')
-WORKSPACE_DIR = path.abspath(path.join(FILE_DIR, '..', '..'))
-TEST_DIR = path.join(WORKSPACE_DIR, 'gpu_test')
-PROJECT_DIR = path.join(WORKSPACE_DIR, 'project')
+PROJECT_DIR = path.abspath(path.join(FILE_DIR, '..', '..', 'project'))
 
 def execute_command(cmd, dir=None):
   process = subprocess.Popen(cmd, shell=(sys.platform=='win32'), cwd=dir)
@@ -27,15 +25,11 @@ def run_try_job():
   execute_command(['git', 'fetch', 'origin'], FILE_DIR)
   execute_command(['git', 'rebase', 'origin/master'], FILE_DIR)
 
-  current_time = datetime.datetime.now().strftime('%Y_%m%d_%H%M')
-  test_dir = path.join(TEST_DIR, current_time)
-  os.makedirs(test_dir)
   execute_command([path.join(BIN_DIR, 'run_tryjob'),
                    '--job', 'webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium',
                    '--chrome-dir', path.join(PROJECT_DIR, 'chromium'),
                    '--aquarium-dir', path.join(PROJECT_DIR, 'aquarium'),
-                   '--update', '--email'],
-                  test_dir)
+                   '--update', '--email'])
   execute_command([path.join(BIN_DIR, 'check_tryjob'),
                    '--dir', path.join(PROJECT_DIR, 'chromium'),
                    '--email'])

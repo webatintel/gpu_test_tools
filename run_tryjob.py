@@ -78,7 +78,7 @@ def parse_arguments():
   if args.aquarium_dir:
     args.aquarium_dir = path.abspath(args.aquarium_dir)
 
-  print('Tests to run:')
+  print('\nTests to run:')
   config = read_json(TRYJOB_CONFIG)
   args.tryjob = []
   for tags in config['tryjob']:
