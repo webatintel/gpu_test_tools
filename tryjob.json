@@ -1,11 +1,11 @@
 {
   "tryjob": [
-    ["webgl_conformance_tests",                    "webgl", "d3d11", "win"],
+    ["webgl_conformance_tests(d3d11)",             "webgl", "d3d11", "win"],
     ["webgl_conformance_validating_tests",         "webgl", "validating", "linux"],
     ["webgl_conformance_gl_passthrough_tests",     "webgl", "gl", "win", "linux"],
     ["webgl_conformance_d3d9_passthrough_tests",   "webgl", "d3d9", "win"],
     ["webgl_conformance_vulkan_passthrough_tests", "webgl", "vulkan", "win", "linux"],
-    ["webgl2_conformance_tests",                   "webgl2", "d3d11", "win"],
+    ["webgl2_conformance_tests(d3d11)",            "webgl2", "d3d11", "win"],
     ["webgl2_conformance_validating_tests",        "webgl2", "validating", "linux"],
     ["webgl2_conformance_gl_passthrough_tests",    "webgl2", "gl", "win", "linux"],
     ["webgpu_blink_web_tests",                     "webgpu", "blink", "win", "linux"],
