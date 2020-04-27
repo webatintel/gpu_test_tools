@@ -13,83 +13,52 @@ from util.system_util import *
 
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
-CHROME_BUILD_TARGETS = [
+CHROME_TARGETS = [
   'chrome',
-  'dawn_end2end_tests',
-  'dawn_perf_tests',
-  'angle_end2end_tests',
-  'angle_perftests',
+  'content_shell',
+  'telemetry_gpu_integration_test',
+  'imagediff',
   'gl_tests',
   'vulkan_tests',
-  'imagediff',
-  'content_shell',
-  'trace_processor_shell',
-]
-
-CHROME_BUILD_TARGETS_LINUX = [
-  'minidump_stackwalk',
-]
-
-DAWN_BUILD_TARGETS = [
   'dawn_end2end_tests',
   'dawn_perf_tests',
-]
-
-ANGLE_BUILD_TARGETS = [
   'angle_end2end_tests',
   'angle_perftests',
 ]
 
-AQUARIUM_BUILD_TARGETS = [
+DAWN_TARGETS = [
+  'dawn_end2end_tests',
+  'dawn_perf_tests',
+]
+
+ANGLE_TARGETS = [
+  'angle_end2end_tests',
+  'angle_perftests',
+]
+
+AQUARIUM_TARGETS = [
   'aquarium',
 ]
 
-CHROME_TARGET_DEPENDENCIES = {
-  'win': [
-    'dawn_end2end_tests.exe',
-    'dawn_perftests.exe',
-    'angle_end2end_tests.exe',
-    'angle_perftests.exe',
-    'gl_tests.exe',
-    'vulkan_tests.exe',
-    'image_diff.exe',
-    'content_shell.exe',
-    'trace_processor_shell.exe',
-    'angle_util.dll',
-    'dawn_end2end_tests.exe.pdb',
-    'dawn_perftests.exe.pdb',
-    'angle_end2end_tests.exe.pdb',
-    'angle_perftests.exe.pdb',
-    'gl_tests.exe.pdb',
-    'vulkan_tests.exe.pdb',
-    'image_diff.exe.pdb',
-    'content_shell.exe.pdb',
-    'trace_processor_shell.exe.pdb',
-  ],
-  'linux': [
-    'dawn_end2end_tests',
-    'dawn_perftests',
-    'angle_end2end_tests',
-    'angle_perftests',
-    'gl_tests',
-    'vulkan_tests',
-    'image_diff',
-    'content_shell',
-    'trace_processor_shell',
-    'minidump_dump',
-    'minidump_stackwalk',
-    'libangle_util.so',
-  ],
+CHROME_EXECUTABLES = {
+  'chrome',
+  'content_shell',
+  'image_diff',
+  'trace_processor_shell',
+  'gl_tests',
+  'vulkan_tests',
+  'dawn_end2end_tests',
+  'dawn_perftests',
+  'angle_end2end_tests',
+  'angle_perftests',
 }
 
-AQUARIUM_TARGET_DEPENDENCIES = {
-  'win':[
-    'aquarium.exe',
-    'aquarium.exe.pdb',
-  ],
-  'linux':[
-    'aquarium',
-  ],
+CHROME_LIBRARIES = {
+  'angle_util',
+}
+
+AQUARIUM_EXECUTABLES = {
+  'aquarium',
 }
 
 AQUARIUM_ASSETS = [
@@ -204,10 +173,7 @@ def build_chrome(args):
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir, env=env)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
-  targets = CHROME_BUILD_TARGETS
-  if is_linux():
-    targets += CHROME_BUILD_TARGETS_LINUX
-  for target in targets:
+  for target in CHROME_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir, env=env)
@@ -224,7 +190,7 @@ def build_dawn(args):
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
-  for target in DAWN_BUILD_TARGETS:
+  for target in DAWN_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir)
@@ -241,7 +207,7 @@ def build_angle(args):
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
-  for target in ANGLE_BUILD_TARGETS:
+  for target in ANGLE_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir)
@@ -260,7 +226,7 @@ def build_aquarium(args):
   execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
-  for target in AQUARIUM_BUILD_TARGETS:
+  for target in AQUARIUM_TARGETS:
     cmd = build_cmd[:]
     cmd.append(target)
     execute_command(cmd, dir=args.dir)
@@ -288,27 +254,39 @@ def build_mesa(args):
   execute_command(build_cmd, dir=args.dir)
 
 
+def copy_executable(src_dir, dest_dir, executables):
+  for executable in executables:
+    if is_linux():
+      copy(path.join(src_dir, executable), dest_dir)
+      chmod(path.join(dest_dir, executable), 755)
+    elif is_win():
+      copy(path.join(src_dir, executable + '.exe'), dest_dir)
+      copy(path.join(src_dir, executable + '.exe.pdb'), dest_dir)
+
+
+def copy_library(src_dir, dest_dir, libraries):
+  for library in libraries:
+    if is_linux():
+      copy(path.join(src_dir, 'lib' + library + '.so'), dest_dir)
+    elif is_win():
+      copy(path.join(src_dir, library + '.dll'), dest_dir)
+
+
 def pack_chrome(args):
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
   zip_file = path.join(args.dir, random_string(8) + '.zip')
-  execute_command([PYTHON_CMD, CHROME_PACK_SCRIPT, 'zip', args.build_dir, 'telemetry_gpu_integration_test', zip_file],
-                  dir=args.dir, env=env)
+  execute_command([PYTHON_CMD, CHROME_PACK_SCRIPT, 'zip', args.build_dir,
+                  'telemetry_gpu_integration_test', zip_file], dir=args.dir, env=env)
 
-  if args.pack:
-    pack_dir = args.pack
-  else:
-    pack_dir = path.join(args.dir, random_string(8))
+  pack_dir = args.pack if args.pack else path.join(args.dir, random_string(8))
   unzip(zip_file, pack_dir)
   remove(zip_file)
 
-  for content in CHROME_TARGET_DEPENDENCIES[get_osname()]:
-    copy(path.join(args.dir, args.build_dir, content),
-         path.join(pack_dir, args.build_dir))
-
-  if is_linux():
-    for target in CHROME_BUILD_TARGETS:
-      chmod(path.join(pack_dir, args.build_dir, target), 755)
+  src_dir = path.join(args.dir, args.build_dir)
+  dest_dir = path.join(pack_dir, args.build_dir)
+  copy_executable(src_dir, dest_dir, CHROME_EXECUTABLES)
+  copy_library(src_dir, dest_dir, CHROME_LIBRARIES)
 
   if args.zip:
     zip(args.zip, pack_dir)
@@ -317,23 +295,14 @@ def pack_chrome(args):
 
 
 def pack_aquarium(args):
-  if args.pack:
-    pack_dir = args.pack
-  else:
-    pack_dir = path.join(args.dir, random_string(8))
+  pack_dir = args.pack if args.pack else path.join(args.dir, random_string(8))
   mkdir(path.join(pack_dir, args.build_dir))
 
+  src_dir = path.join(args.dir, args.build_dir)
+  dest_dir = path.join(pack_dir, args.build_dir)
+  copy_executable(src_dir, dest_dir, AQUARIUM_EXECUTABLES)
   for content in AQUARIUM_ASSETS:
-    copy(path.join(args.dir, content),
-         path.join(pack_dir))
-
-  for content in AQUARIUM_TARGET_DEPENDENCIES[get_osname()]:
-    copy(path.join(args.dir, args.build_dir, content),
-         path.join(pack_dir, args.build_dir))
-
-  if is_linux():
-    for target in AQUARIUM_BUILD_TARGETS:
-      chmod(path.join(pack_dir, args.build_dir, target), 755)
+    copy(path.join(args.dir, content), pack_dir)
 
   if args.zip:
     zip(args.zip, pack_dir)

@@ -200,7 +200,8 @@ def main():
       aquarium_build_failed = True
 
   # Run tests
-  mkdir(args.result_dir)
+  if not args.dry_run:
+    mkdir(args.result_dir)
   for test_type, backend in args.tryjob:
     if test_type == 'aquarium' and aquarium_build_failed:
       continue
@@ -229,7 +230,7 @@ def main():
       notify_command_error(args, args.receiver_admin, e)
 
   # Parse result
-  header = 'Location: %s\n' % os.getcwd()
+  header = 'Location: %s\n' % args.result_dir
   gpu, driver = get_gpu_info()
   if gpu:
     header += 'GPU: %s\n' % gpu
@@ -245,7 +246,7 @@ def main():
       if report:
         title, report = update_aquarium_report(args, report)
         report = '%s\n%s' % (header, report)
-        write_file(AQUARIUM_REPORT, report)
+        write_file(path.join(args.result_dir, AQUARIUM_REPORT), report)
         if args.email:
           send_email(args.receiver_aquarium, title, report)
     
@@ -259,7 +260,7 @@ def main():
           if revision:
             header += 'Chrome: %s\n' % revision
         report = '%s\n%s' % (header, report)
-        write_file(TRYJOB_REPORT, report)
+        write_file(path.join(args.result_dir, TRYJOB_REPORT), report)
         if args.email:
           send_email(args.receiver_tryjob, title, report)
   except CalledProcessError as e:
