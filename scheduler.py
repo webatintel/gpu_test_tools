@@ -15,7 +15,7 @@ BIN_DIR= path.join(FILE_DIR, 'bin')
 PROJECT_DIR = path.abspath(path.join(FILE_DIR, '..', '..', 'project'))
 
 def execute_command(cmd, dir=None):
-  process = subprocess.Popen(cmd, shell=(sys.platform=='win32'), cwd=dir)
+  process = subprocess.Popen(cmd, cwd=dir, shell=(sys.platform=='win32'))
   retcode = process.wait()
   if retcode:
     sys.exit(retcode)

@@ -71,18 +71,18 @@ def parse_arguments():
            'dawn_vulkan : dawn vulkan\n'\
            'dawn_d3d12  : dawn d3d12\n'\
            'd3d12       : d3d12\n\n')
+  parser.add_argument('--dir', '-d', default='.',
+      help='Source directory.\n\n')
   parser.add_argument('--target', '-t', default='Default',
       help='The target build directory under out/. Default is \'Default\'.\n\n')
-  parser.add_argument('--dir', '-d', default='.',
-      help='Project source directory.\n\n')
   parser.add_argument('--log', '-l', action='store_true',
       help='Print full test logs when test is running.\n\n')
+  parser.add_argument('--filter', '-f',
+      help='Keywords to match the test cases. Devide with |.\n\n')
   parser.add_argument('--repeat', '-r', default=1, type=int,
       help='The number of times to repeat running this test.\n'\
            'If the number of shards is more than 1, the running sequence\n'\
            'will be shard0 * N times, shard1 * N times ...\n\n')
-  parser.add_argument('--filter', '-f',
-      help='Keywords to match the test cases. Devide with |.\n\n')
   parser.add_argument('--shard', '-s', default=1, type=int,
       help='Total number of shards being used for this test. Default is 1.\n\n')
   parser.add_argument('--index', '-i', default=-1, type=int,
@@ -135,13 +135,18 @@ def parse_arguments():
   args.dir = path.abspath(args.dir)
   if path.basename(args.dir) == 'chromium' and path.exists(path.join(args.dir, 'src')):
     args.dir = path.join(args.dir, 'src')
-  args.build_dir = path.join('out', args.target)
+  args.build_dir = path.join(args.dir, 'out', args.target)
   return args, extra_args
 
 
 def generate_webgl_arguments(args):
+  if is_linux():
+    executable = path.join(args.build_dir, 'chrome')
+  elif is_win():
+    executable = path.join(args.build_dir, 'chrome.exe')
+
   total_args = ['--show-stdout', '--passthrough', '-v',
-                '--browser=' + args.target.lower(),
+                '--browser=exact', '--browser-executable=' + executable,
                 '--retry-only-retry-on-failure-tests']
   if args.type == 'webgl2':
     total_args += ['--webgl-conformance-version=2.0.1',
@@ -275,24 +280,24 @@ def main():
     total_shards = '--total-shards'
     shard_index = '--shard-index'
   elif args.type == 'aquarium':
-    cmd = [path.join(args.dir, args.build_dir, AQUARIUM_TEST_CMD)]
+    cmd = [path.join(args.build_dir, AQUARIUM_TEST_CMD)]
     cmd += generate_aquarium_arguments(args)
   else:
     if args.type == 'dawn':
       if args.backend.startswith('end2end'):
-        cmd = [path.join(args.dir, args.build_dir, DAWN_END2END_TEST_CMD)]
+        cmd = [path.join(args.build_dir, DAWN_END2END_TEST_CMD)]
       elif args.backend == 'perf':
-        cmd = [path.join(args.dir, args.build_dir, DAWN_PERF_TEST_CMD)]
+        cmd = [path.join(args.build_dir, DAWN_PERF_TEST_CMD)]
     elif args.type == 'angle':
       if args.backend == 'end2end':
-        cmd = [path.join(args.dir, args.build_dir, ANGLE_END2END_TEST_CMD)]
+        cmd = [path.join(args.build_dir, ANGLE_END2END_TEST_CMD)]
       elif args.backend == 'perf':
-        cmd = [path.join(args.dir, args.build_dir, ANGLE_PERF_TEST_CMD)]
+        cmd = [path.join(args.build_dir, ANGLE_PERF_TEST_CMD)]
     elif args.type == 'gpu':
       if args.backend == 'gl':
-        cmd = [path.join(args.dir, args.build_dir, GL_TEST_CMD)]
+        cmd = [path.join(args.build_dir, GL_TEST_CMD)]
       elif args.backend == 'vulkan':
-        cmd = [path.join(args.dir, args.build_dir, VULKAN_TEST_CMD)]
+        cmd = [path.join(args.build_dir, VULKAN_TEST_CMD)]
     cmd += generate_gtest_arguments(args)
     total_shards = '--test-launcher-total-shards'
     shard_index = '--test-launcher-shard-index'

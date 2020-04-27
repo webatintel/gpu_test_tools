@@ -244,7 +244,6 @@ def merge_shard_result(test_suites):
       name, ext = path.splitext(name)
       if not ext:
         break
-    name = name.replace('_test', '')
     job_type, backend = name.split('_', 1)
     for tags in config['tryjob']:
       if tags[1] == job_type and tags[2] == backend:

@@ -18,8 +18,8 @@ from subprocess import CalledProcessError
 
 PYTHON_CMD = 'vpython'
 
-EMAIL_SENDER = 'gpu_test@wp-40.sh.intel.com'
-SMTP_SERVER = '10.239.47.103'
+FILE_DIR = path.dirname(path.abspath(__file__))
+TRYJOB_CONFIG = path.join(FILE_DIR, '..', 'tryjob.json')
 
 PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z\-\(\)]+ .+$'
 PATTERN_CHROME_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
@@ -41,36 +41,44 @@ def get_currenttime(format=None):
     return time.strftime(format)
   return time
 
-def send_email(receivers, subject, body='', attached_files=[]):
-  if not receivers:
+def send_email(receiver, subject, body='', attachment=[]):
+  if not receiver:
     return
-  if not isinstance(receivers, list):
-    receivers = [receivers]
-  if not isinstance(attached_files, list):
-    attached_files = [attached_files]
+  if not isinstance(receiver, list):
+    receiver = [receiver]
+  if not isinstance(attachment, list):
+    attachment = [attachment]
 
+  config = read_json(TRYJOB_CONFIG)
   message = MIMEMultipart()
-  message['From'] = EMAIL_SENDER
-  message['To'] =  email.utils.COMMASPACE.join(receivers)
+  message['From'] = config['email']['sender']
+  message['To'] =  email.utils.COMMASPACE.join(receiver)
   message['Subject'] = subject
   message.attach(MIMEText(body, 'plain'))
 
-  for file_name in attached_files:
+  for file_name in attachment:
     content = read_file(file_name)
     if not content:
       continue
-    attachment = MIMEBase('application', "octet-stream")
-    attachment.set_payload(content)
-    encoders.encode_base64(attachment)
-    attachment.add_header('Content-Disposition', 'attachment; filename="%s"' % path.basename(file_path))
-    message.attach(attachment)
+    item = MIMEBase('application', "octet-stream")
+    item.set_payload(content)
+    encoders.encode_base64(item)
+    item.add_header('Content-Disposition', 'attachment; filename="%s"' % path.basename(file_name))
+    message.attach(item)
 
   try:
-    smtp = smtplib.SMTP(SMTP_SERVER)
-    smtp.sendmail(EMAIL_SENDER, receivers, message.as_string())
+    smtp = smtplib.SMTP(config['email']['smtp_server'])
+    smtp.sendmail(config['email']['sender'], receiver, message.as_string())
     smtp.quit()
   except Exception as e:
     print(e)
+
+
+def execute_command_passthrough(cmd, dir=None, env=None):
+  process = subprocess.Popen(cmd, cwd=dir, env=env, shell=(sys.platform=='win32'))
+  retcode = process.wait()
+  if retcode:
+    raise CalledProcessError(retcode, cmd, '')
 
 
 def execute_command(cmd, print_log=True, return_log=False, save_log=None, dir=None, env=None):
@@ -89,9 +97,8 @@ def execute_command(cmd, print_log=True, return_log=False, save_log=None, dir=No
           (get_currenttime('%Y/%m/%d %H:%M:%S'), ' '.join(cmd),
            path.abspath(dir) if dir else os.getcwd()))
 
-    process = subprocess.Popen(cmd,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        shell=(sys.platform=='win32'), cwd=dir, env=env)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               cwd=dir, env=env, shell=(sys.platform=='win32'))
 
     for line in iter(process.stdout.readline, b''):
       line = line.decode().strip()
@@ -144,17 +151,7 @@ def execute_command(cmd, print_log=True, return_log=False, save_log=None, dir=No
         log_file.flush()
         os.fsync(log_file.fileno())
   except Exception as e:
-    if print_log:
-      print(e)
-    if save_log:
-      if not log_file:
-        log_file = open(save_log, 'w')
-      log_file.write(str(e))
-    if return_log:
-      log_lines += str(e).split('\n')
-      raise CalledProcessError(1, cmd, '\n'.join(log_lines))
-    else:
-      raise CalledProcessError(1, cmd, str(e))
+    raise e
   finally:
     if log_file:
       log_file.close()

@@ -23,29 +23,30 @@ PATTERN_NEW_FAIL = r'^.*\[New Fail:(\d+)\].*$'
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
-      description='Run tryjobs. The tryjob configuration is in "tryjob.json" under source directory.\n'\
-                  'Once the tests are finished, the statistics are saved in "tryjob_report.txt".\n\n',
+      description='Run selected tests with your local build.\n'\
+                  'Once the tests are finished, the statistics are output to the screen and the file "tryjob_report.txt".\n'\
+                  'The tryjob configuration is in "tryjob.json".\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('--job', '-j', nargs='*',
       choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
       default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
-      help='The tryjobs to run, you can specify multiple. Default is all except aquarium.\n'\
+      help='You can select one or more job types from the candidates. Default is all job types except Aquarium.\n'\
            'webgl    :  WebGL conformance tests\n'\
            'webgpu   :  WebGPU conformance tests\n'\
            'dawn     :  Dawn tests\n'\
            'angle    :  ANGLE tests\n'\
-           'gpu      :  GPU unit tests\n'\
+           'gpu      :  Native GPU tests\n'\
            'aquarium :  Aquarium performance tests\n\n')
   parser.add_argument('--test-filter', '-f', nargs='*',
-      help='Filter the tests that contains the keyword, you can specify multiple.\n\n')
-  parser.add_argument('--result-dir', '-d',
-      help='Where to run test and to save the result.\n'\
-           'If not specified, it will create a directory with timestamp under the tryjob/ subdirectory of this repository\n\n')
-  parser.add_argument('--chrome-dir',
+      help='You can specify one or more keywords (the logic is OR), the test that contains the keyword will be run.\n\n')
+  parser.add_argument('--result-dir', '-r',
+      help='Where to hold test logs and test results. The final report "tryjob_report.txt" is generated here as well.\n'\
+           'If not specified, the test will create a directory with timestamp YEAR_DATE_TIME under the tryjob/ subdirectory of this repository\n\n')
+  parser.add_argument('--chrome-dir', '-c',
       help='Chrome source directory.\n\n')
-  parser.add_argument('--dawn-dir',
+  parser.add_argument('--dawn-dir', '-d',
       help='Dawn source directory.\n\n')
-  parser.add_argument('--angle-dir',
+  parser.add_argument('--angle-dir', '-a',
       help='ANGLE source directory.\n\n')
   parser.add_argument('--aquarium-dir',
       help='Aquarium source directory.\n\n')
@@ -54,7 +55,7 @@ def parse_arguments():
   parser.add_argument('--build', '-b', action='store_true',
       help='Rebuild all targets before running tests.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
-      help='Fetch from origin and rebase current branch, then synchronize the dependencies before building.\n'\
+      help='Fetch from origin and rebase to master, then synchronize the dependencies before building.\n'\
            '--build will be enabled automatically.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
@@ -98,7 +99,9 @@ def parse_arguments():
     args.tryjob.append((tags[1], tags[2]))
 
   args.tryjob_shards = config['tryjob_shards']
-  args.receiver = config['receiver']
+  args.receiver_admin = config['email']['receiver']['admin']
+  args.receiver_tryjob = config['email']['receiver']['tryjob']
+  args.receiver_aquarium = config['email']['receiver']['aquarium']
   args.aquarium_average_fps = config['aquarium_average_fps']
 
   return args
@@ -141,7 +144,7 @@ def update_aquarium_report(args, report):
     if match:
       key, value = match.group(1), int(match.group(2))
       reference_value = args.aquarium_average_fps[get_osname()][key]
-      bias = int(float(value - reference_value) * 100 / reference_value)
+      bias = (value - reference_value) * 100 // reference_value
       lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
       if abs(bias) > abs(max_bias):
         max_bias = bias
@@ -154,14 +157,19 @@ def update_aquarium_report(args, report):
   return title, '\n'.join(lines)
 
 
-def build_project(args, project, build_dir):
-  build_cmd = [path.join(BIN_DIR, 'build_project'), project, '--target', args.target, '--dir', build_dir]
+def build_project(args, project, source_dir):
+  build_cmd = [path.join(BIN_DIR, 'build_project'), project, '--target', args.target, '--dir', source_dir]
   if args.update:
     build_cmd.append('--update')
-  execute_command(build_cmd, return_log=True)
+  try:
+    execute_command_passthrough(build_cmd)
+  except CalledProcessError:
+    execute_command(build_cmd, return_log=True)
 
 
-def notify_command_error(receiver, error):
+def notify_command_error(args, receiver, error):
+  if not args.email:
+    return
   send_email(receiver,
              '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
              '%s\n\n%s' % (' '.join(error.cmd), error.output))
@@ -181,16 +189,14 @@ def main():
       if args.angle_dir:
         build_project(args, 'angle', args.angle_dir)
     except CalledProcessError as e:
-      if args.email:
-        notify_command_error(args.receiver['admin'], e)
+      notify_command_error(args, args.receiver_admin, e)
       raise e
 
     try:
       if args.aquarium_dir:
         build_project(args, 'aquarium', args.aquarium_dir)
     except CalledProcessError as e:
-      if args.email:
-        notify_command_error(args.receiver['aquarium'], e)
+      notify_command_error(args, args.receiver_aquarium, e)
       aquarium_build_failed = True
 
   # Run tests
@@ -220,8 +226,7 @@ def main():
         cmd += ['--dry-run']
       execute_command(cmd, return_log=True, dir=args.result_dir)
     except CalledProcessError as e:
-      if args.email:
-        notify_command_error(args.receiver['admin'], e)
+      notify_command_error(args, args.receiver_admin, e)
 
   # Parse result
   header = 'Location: %s\n' % os.getcwd()
@@ -242,7 +247,7 @@ def main():
         report = '%s\n%s' % (header, report)
         write_file(AQUARIUM_REPORT, report)
         if args.email:
-          send_email(args.receiver['aquarium'], title, report)
+          send_email(args.receiver_aquarium, title, report)
     
     if job_set:
       report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type'] + list(job_set),
@@ -256,10 +261,9 @@ def main():
         report = '%s\n%s' % (header, report)
         write_file(TRYJOB_REPORT, report)
         if args.email:
-          send_email(args.receiver['tryjob'], title, report)
+          send_email(args.receiver_tryjob, title, report)
   except CalledProcessError as e:
-    if args.email:
-      notify_command_error(args.receiver['admin'], e)
+    notify_command_error(args, args.receiver_admin, e)
 
   print('\nTest result     : ' + args.result_dir)
   if path.exists(path.join(args.result_dir, AQUARIUM_REPORT)):

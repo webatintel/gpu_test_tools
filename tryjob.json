@@ -38,19 +38,23 @@
     "webgl_vulkan":
       ["--force_high_performance_gpu", "--use-cmd-decoder=passthrough", "--use-angle=vulkan"]
   },
-  "receiver": {
-    "admin": [
-      "lin.sun@intel.com"
-    ],
-    "tryjob": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com"
-    ],
-    "aquarium": [
-      "lin.sun@intel.com",
-      "yang.gu@intel.com",
-      "jiajie.hu@intel.com"
-    ]
+  "email": {
+    "smtp_server": "10.239.47.103",
+    "sender": "gpu_test@wp-40.sh.intel.com",
+    "receiver": {
+      "admin": [
+        "lin.sun@intel.com"
+      ],
+      "tryjob": [
+        "lin.sun@intel.com",
+        "yang.gu@intel.com"
+      ],
+      "aquarium": [
+        "lin.sun@intel.com",
+        "yang.gu@intel.com",
+        "jiajie.hu@intel.com"
+      ]
+    }
   },
   "aquarium_average_fps": {
     "win": {

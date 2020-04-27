@@ -111,14 +111,13 @@ def parse_arguments():
       choices=['chrome', 'dawn', 'angle', 'aquarium', 'mesa'], default='chrome',
       help='The project to build. Default is "chrome".\n\n')
   parser.add_argument('--dir', '-d', default='.',
-      help='Project source directory.\n\n')
-  parser.add_argument('--target', '-t', nargs='*',
-      choices=['Default', 'Release', 'Debug'], default=['Default'],
+      help='Source directory.\n\n')
+  parser.add_argument('--target', '-t', nargs='*', default=['Default'],
       help='The target build directory under out/, you can specify multiple. Default is "Default".\n'\
-           'Default(any suffix) : For Chrome, the build arguments are same as official trybot.\n'\
-           '                      For others, it\'s same as release build.\n'\
-           'Debug(any suffix)   : the debug build.\n'\
-           'any other targets   : the release build.\n\n')
+           'starts with "Default" : For Chrome, the build arguments are same as official trybot.\n'\
+           '                        For others, it\'s same as release build.\n'\
+           'starts with "Debug"   : the debug build.\n'\
+           'starts with "Release" : the release build.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
       help='Fetch from origin and rebase to master, then synchronize the dependencies before building.\n\n')
   parser.add_argument('--pack', '-p',
@@ -133,6 +132,13 @@ def parse_arguments():
       raise Exception('Do not support to package multiple targets')
     if not args.project in ['chrome', 'aquarium', 'mesa']:
       raise Exception('Do not support to package ' + args.project)
+
+  if args.project == 'mesa' and args.target != ['Default']:
+    raise Exception('Mesa does not support --target')
+
+  for target in args.target:
+    if not target.startswith('Default') and not target.startswith('Debug') and not target.startswith('Release'):
+      raise Exception('Target must starts with "Default/Debug/Release"')
 
   args.dir = path.abspath(args.dir)
   if args.pack:
@@ -173,7 +179,7 @@ def build_chrome(args):
   build_args = {}
   build_args['proprietary_codecs'] = 'true'
   build_args['ffmpeg_branding'] = '"Chrome"'
-  if args.build_type.startswith('default'):
+  if args.build_type == 'default':
     build_args['is_debug'] = 'false'
     build_args['is_component_build'] = 'false'
     build_args['symbol_level'] = '1'
@@ -184,10 +190,10 @@ def build_chrome(args):
     build_args['is_component_build'] = 'true'
     build_args['enable_nacl'] = 'false'
     build_args['blink_symbol_level'] = '0'
-    if args.build_type.startswith('debug'):
+    if args.build_type == 'debug':
       build_args['is_debug'] = 'true'
       build_args['symbol_level'] = '2'
-    else:
+    elif args.build_type == 'release':
       build_args['is_debug'] = 'false'
       build_args['symbol_level'] = '1'
       build_args['dcheck_always_on'] = 'true'
@@ -209,9 +215,9 @@ def build_chrome(args):
 
 def build_dawn(args):
   build_args = {}
-  if args.build_type.startswith('debug'):
+  if args.build_type == 'debug':
     build_args['is_debug'] = 'true'
-  else:
+  elif args.build_type == 'default' or args.build_type == 'release':
     build_args['is_debug'] = 'false'
 
   arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
@@ -226,9 +232,9 @@ def build_dawn(args):
 
 def build_angle(args):
   build_args = {}
-  if args.build_type.startswith('debug'):
+  if args.build_type == 'debug':
     build_args['is_debug'] = 'true'
-  else:
+  elif args.build_type == 'default' or args.build_type == 'release':
     build_args['is_debug'] = 'false'
 
   arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
@@ -243,9 +249,9 @@ def build_angle(args):
 
 def build_aquarium(args):
   build_args = {}
-  if args.build_type.startswith('debug'):
+  if args.build_type == 'debug':
     build_args['is_debug'] = 'true'
-  else:
+  elif args.build_type == 'default' or args.build_type == 'release':
     build_args['is_debug'] = 'false'
   if is_linux():
     build_args['dawn_enable_opengl'] = 'false'
@@ -358,7 +364,7 @@ def main():
     elif args.project != 'mesa':
       execute_command(['gclient', 'sync', '-D'], dir=args.dir)
 
-  for build_type in args.target:
+  for target in args.target:
     if args.project == 'mesa':
       args.build_dir = 'out'
       build_dir = path.join(args.dir, args.build_dir)
@@ -371,8 +377,13 @@ def main():
       else:
         args.prefix = ''
     else:
-      args.build_type = build_type.lower()
-      args.build_dir = path.join('out', build_type)
+      if target.startswith('Default'):
+        args.build_type = 'default'
+      elif target.startswith('Debug'):
+        args.build_type = 'debug'
+      elif target.startswith('Release'):
+        args.build_type = 'release'
+      args.build_dir = path.join('out', target)
 
     if args.project == 'chrome':
       build_chrome(args)
