@@ -22,21 +22,19 @@ PATTERN_NEW_PASS = r'^.*\[New Pass:(\d+)\].*$'
 PATTERN_NEW_FAIL = r'^.*\[New Fail:(\d+)\].*$'
 
 def parse_arguments():
+  config = read_json(TRYJOB_CONFIG)
+  job_choice = set()
+  for _, platform, _, job_type in config['tryjob']:
+    if get_osname() in platform:
+      job_choice |= set(job_type)
+
   parser = argparse.ArgumentParser(
       description='Run selected tests with your local build.\n'\
                   'Once the tests are finished, the statistics are output to the screen and the file "tryjob_report.txt".\n'\
                   'The tryjob configuration is in "tryjob.json".\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--job', '-j', nargs='+',
-      choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
-      default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
-      help='You can select one or more job types from the candidates. Default is all job types except Aquarium.\n'\
-           'webgl    :  WebGL conformance tests\n'\
-           'webgpu   :  WebGPU conformance tests\n'\
-           'dawn     :  Dawn tests\n'\
-           'angle    :  ANGLE tests\n'\
-           'gpu      :  Native GPU tests\n'\
-           'aquarium :  Aquarium performance tests\n\n')
+  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=list(job_choice), required=True,
+      help='You can select one or more job types from the candidates.\n\n')
   parser.add_argument('--test-filter', '-f', nargs='+',
       help='You can specify one or more keywords (the logic is OR), the test that contains the keyword will be run.\n\n')
   parser.add_argument('--result-dir', '-r',
@@ -51,7 +49,7 @@ def parse_arguments():
   parser.add_argument('--aquarium-dir',
       help='Aquarium source directory.\n\n')
   parser.add_argument('--target', '-t', default='Default',
-      help='The target build directory under out/. Default is "Default".\n\n')
+      help='The target build directory under "out/". Default is "Default".\n\n')
   parser.add_argument('--build', '-b', action='store_true',
       help='Rebuild all targets before running tests.\n\n')
   parser.add_argument('--update', '-u', action='store_true',
@@ -80,23 +78,22 @@ def parse_arguments():
     args.aquarium_dir = path.abspath(args.aquarium_dir)
 
   print('\nTests to run:')
-  config = read_json(TRYJOB_CONFIG)
   args.tryjob = []
-  for tags in config['tryjob']:
-    if get_osname() not in tags:
+  for test_name, platform, test_arg, job_type in config['tryjob']:
+    if get_osname() not in platform:
       continue
-    if args.job and tags[1].replace('webgl2', 'webgl') not in args.job:
+    if args.job_type and not (set(args.job_type) & set(job_type)):
       continue
     if args.test_filter:
       matched = False
       for keyword in args.test_filter:
-        if keyword in tags[0]:
+        if keyword in test_name:
           matched = True
           break
       if not matched:
         continue
-    print(tags[0])
-    args.tryjob.append((tags[1], tags[2]))
+    print(test_name)
+    args.tryjob.append(test_arg)
 
   args.tryjob_shards = config['tryjob_shards']
   args.receiver_admin = config['email']['receiver']['admin']
@@ -206,30 +203,39 @@ def main():
     if test_type == 'aquarium' and aquarium_build_failed:
       continue
 
-    try:
-      cmd = [path.join(BIN_DIR, 'run_gpu_test'), test_type, '--backend', backend, '--target', args.target]
-      if test_type == 'aquarium':
-        assert args.aquarium_dir
-        cmd += ['--dir', args.aquarium_dir]
-      elif test_type == 'angle' and args.angle_dir:
-        cmd += ['--dir', args.angle_dir]
-      elif test_type == 'dawn' and args.dawn_dir:
-        cmd += ['--dir', args.dawn_dir]
-      else:
-        assert args.chrome_dir
-        cmd += ['--dir', args.chrome_dir]
+    cmd = [path.join(BIN_DIR, 'run_gpu_test'), test_type, '--backend', backend, '--target', args.target]
+    if test_type == 'aquarium':
+      assert args.dry_run or args.aquarium_dir
+      cmd += ['--dir', args.aquarium_dir]
+    elif test_type == 'angle' and args.angle_dir:
+      cmd += ['--dir', args.angle_dir]
+    elif test_type == 'dawn' and args.dawn_dir:
+      cmd += ['--dir', args.dawn_dir]
+    else:
+      assert args.dry_run or args.chrome_dir
+      cmd += ['--dir', args.chrome_dir]
 
-      for key in ['%s_%s' % (test_type, backend), test_type]:
-        if key in args.tryjob_shards:
-          cmd += ['--shard', str(args.tryjob_shards[key])]
-          break
-      if args.dry_run:
-        cmd += ['--dry-run']
+    for key in ['%s_%s' % (test_type, backend), test_type]:
+      if key in args.tryjob_shards:
+        cmd += ['--shard', str(args.tryjob_shards[key])]
+        break
+    if args.dry_run:
+      cmd += ['--dry-run']
+
+    try:
       execute_command(cmd, return_log=True, dir=args.result_dir)
     except CalledProcessError as e:
       notify_command_error(args, args.receiver_admin, e)
 
   # Parse result
+  try:
+    aquarium_report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
+                                      return_log=True, dir=args.result_dir)
+    tryjob_report = execute_command([path.join(BIN_DIR, 'parse_result')],
+                                    return_log=True, dir=args.result_dir)
+  except CalledProcessError as e:
+    notify_command_error(args, args.receiver_admin, e)
+
   header = 'Location: %s\n' % args.result_dir
   gpu, driver = get_gpu_info()
   if gpu:
@@ -237,40 +243,29 @@ def main():
   if driver:
     header += 'Driver: %s\n' % driver
 
-  try:
-    job_set = set([test_type.replace('webgl2', 'webgl') for test_type, backend in args.tryjob])
-    if 'aquarium' in job_set:
-      job_set.remove('aquarium')
-      report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
-                               return_log=True, dir=args.result_dir)
-      if report:
-        title, report = update_aquarium_report(args, report)
-        report = '%s\n%s' % (header, report)
-        write_file(path.join(args.result_dir, AQUARIUM_REPORT), report)
-        if args.email:
-          send_email(args.receiver_aquarium, title, report)
-    
-    if job_set:
-      report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type'] + list(job_set),
-                               return_log=True, dir=args.result_dir)
-      if report:
-        title, report = update_tryjob_report(args, report)
-        if args.chrome_dir:
-          revision = get_chrome_revision(args.chrome_dir)
-          if revision:
-            header += 'Chrome: %s\n' % revision
-        report = '%s\n%s' % (header, report)
-        write_file(path.join(args.result_dir, TRYJOB_REPORT), report)
-        if args.email:
-          send_email(args.receiver_tryjob, title, report)
-  except CalledProcessError as e:
-    notify_command_error(args, args.receiver_admin, e)
+  if aquarium_report:
+    title, aquarium_report = update_aquarium_report(args, aquarium_report)
+    aquarium_report = '%s\n%s' % (header, aquarium_report)
+    write_file(path.join(args.result_dir, AQUARIUM_REPORT), aquarium_report)
+    if args.email:
+      send_email(args.receiver_aquarium, title, aquarium_report)
+
+  if tryjob_report:
+    title, tryjob_report = update_tryjob_report(args, tryjob_report)
+    if args.chrome_dir and not args.dry_run:
+      revision = get_chrome_revision(args.chrome_dir)
+      if revision:
+        header += 'Chrome: %s\n' % revision
+    tryjob_report = '%s\n%s' % (header, tryjob_report)
+    write_file(path.join(args.result_dir, TRYJOB_REPORT), tryjob_report)
+    if args.email:
+      send_email(args.receiver_tryjob, title, tryjob_report)
 
   print('\nTest result     : ' + args.result_dir)
-  if path.exists(path.join(args.result_dir, AQUARIUM_REPORT)):
-    print('Aquarium report : ' + path.join(args.result_dir, AQUARIUM_REPORT))
   if path.exists(path.join(args.result_dir, TRYJOB_REPORT)):
     print('Tryjob report   : ' + path.join(args.result_dir, TRYJOB_REPORT))
+  if path.exists(path.join(args.result_dir, AQUARIUM_REPORT)):
+    print('Aquarium report : ' + path.join(args.result_dir, AQUARIUM_REPORT))
   return 0
 
 

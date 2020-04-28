@@ -75,12 +75,12 @@ PATTERN_DAWN_REVISION = r'  \'dawn_revision\': \'\w+\''
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
-      description='Build project',
+      description='Build project.',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('project', nargs='?',
       choices=['chrome', 'dawn', 'angle', 'aquarium', 'mesa'], default='chrome',
       help='The project to build. Default is "chrome".\n\n')
-  parser.add_argument('--dir', '-d', default='.',
+  parser.add_argument('--src-dir', '--dir', '-d', default='.',
       help='The source directory. Default is current directory.\n\n')
   parser.add_argument('--target', '-t', nargs='+', default=['Default'],
       help='The target build directory under "out/", you can specify multiple.\n'\
@@ -107,10 +107,10 @@ def parse_arguments():
     if target.split('_')[0] not in ['Default', 'Debug', 'Release']:
       raise Exception('Invalid target ' + target)
 
-  args.dir = path.abspath(args.dir)
+  args.src_dir = path.abspath(args.src_dir)
   if args.prefix:
     args.prefix = path.abspath(args.prefix)
-    if args.prefix == args.dir:
+    if args.prefix == args.src_dir:
       raise Exception('Prefix is same as the source directory.')
     if path.exists(args.prefix):
       raise Exception('Prefix already exits.')
@@ -122,7 +122,7 @@ def parse_arguments():
   if args.prefix:
     args.pack_dir = args.prefix
   elif args.zip:
-    args.pack_dir = path.join(args.dir, random_string(8))
+    args.pack_dir = path.join(args.src_dir, random_string(8))
   else:
     args.pack_dir = None
   return args
@@ -132,13 +132,13 @@ def build_gn_project(args, build_args, build_targets):
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
   arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
-  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.dir, env=env)
+  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)], dir=args.src_dir, env=env)
 
   build_cmd = ['autoninja', '-C', args.build_dir]
   for build_target in build_targets:
     cmd = build_cmd[:]
     cmd.append(build_target)
-    execute_command(cmd, dir=args.dir, env=env)
+    execute_command(cmd, dir=args.src_dir, env=env)
 
 
 def build_chrome(args):
@@ -172,6 +172,7 @@ def build_dawn(args):
     build_args['is_debug'] = 'true'
   elif args.build_type in ['default', 'release']:
     build_args['is_debug'] = 'false'
+    build_args['dcheck_always_on'] = 'true'
   build_gn_project(args, build_args, DAWN_TARGET)
 
 
@@ -181,6 +182,7 @@ def build_angle(args):
     build_args['is_debug'] = 'true'
   elif args.build_type in ['default', 'release']:
     build_args['is_debug'] = 'false'
+    build_args['dcheck_always_on'] = 'true'
   build_gn_project(args, build_args, ANGLE_TARGET)
 
 
@@ -215,29 +217,29 @@ def build_mesa(args):
 
   meson_cmd = ['meson', args.build_dir]
   meson_cmd += ['-D%s=%s' % (key,value) for key,value in build_args.items()]
-  execute_command(meson_cmd, dir=args.dir)
+  execute_command(meson_cmd, dir=args.src_dir)
 
   build_cmd = ['ninja', '-C', args.build_dir]
-  execute_command(build_cmd, dir=args.dir)
+  execute_command(build_cmd, dir=args.src_dir)
 
 
 def pack_chrome(args):
-  zip_file = path.join(args.dir, random_string(8) + '.zip')
+  zip_file = path.join(args.src_dir, random_string(8) + '.zip')
   execute_command([PYTHON_CMD, CHROME_PACK_SCRIPT, 'zip', args.build_dir,
-                  'telemetry_gpu_integration_test', zip_file], dir=args.dir)
+                  'telemetry_gpu_integration_test', zip_file], dir=args.src_dir)
   unzip(zip_file, args.pack_dir)
   remove(zip_file)
 
-  src_build = path.join(args.dir, args.build_dir)
+  src_build = path.join(args.src_dir, args.build_dir)
   dest_build = path.join(args.pack_dir, args.build_dir)
   copy_executable(src_build, dest_build, CHROME_EXECUTABLE)
   copy_library(src_build, dest_build, CHROME_LIBRARY)
   copy_resource(src_build, dest_build, CHROME_RESOURCE)
-  copy_resource(args.dir, args.pack_dir, CHROME_SRC_RESOURCE)
+  copy_resource(args.src_dir, args.pack_dir, CHROME_SRC_RESOURCE)
 
 
 def update_aquarium_deps(args):
-  dawn_dir = path.join(args.dir, 'third_party', 'dawn')
+  dawn_dir = path.join(args.src_dir, 'third_party', 'dawn')
   execute_command(['git', 'fetch', 'origin'], dir=dawn_dir)
   execute_command(['git', 'rebase', 'origin/master'], dir=dawn_dir)
   dawn_revision = None
@@ -252,7 +254,7 @@ def update_aquarium_deps(args):
   else:
     raise Exception('Dawn revision not found')
 
-  deps_file = path.join(args.dir, 'DEPS')
+  deps_file = path.join(args.src_dir, 'DEPS')
   deps_contents = []
   for line in read_line(deps_file):
     line = line.rstrip()
@@ -268,14 +270,14 @@ def main():
   args = parse_arguments()
 
   if args.update:
-    execute_command(['git', 'checkout', '.'], dir=args.dir)
-    execute_command(['git', 'fetch', 'origin'], dir=args.dir)
-    execute_command(['git', 'rebase', 'origin/master'], dir=args.dir)
+    execute_command(['git', 'checkout', '.'], dir=args.src_dir)
+    execute_command(['git', 'fetch', 'origin'], dir=args.src_dir)
+    execute_command(['git', 'rebase', 'origin/master'], dir=args.src_dir)
 
     if args.project == 'aquarium':
       update_aquarium_deps(args)
     if args.project != 'mesa':
-      execute_command(['gclient', 'sync', '-D'], dir=args.dir)
+      execute_command(['gclient', 'sync', '-D'], dir=args.src_dir)
 
   for target in args.target:
     args.build_type = target.split('_')[0].lower()
@@ -295,7 +297,7 @@ def main():
     if args.project == 'chrome':
       pack_chrome(args)
     elif args.project == 'mesa':
-      execute_command(['ninja', '-C', args.build_dir, 'install'], dir=args.dir)
+      execute_command(['ninja', '-C', args.build_dir, 'install'], dir=args.src_dir)
 
     if args.zip:
       zip(args.zip, args.pack_dir)

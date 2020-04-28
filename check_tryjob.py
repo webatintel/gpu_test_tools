@@ -17,15 +17,15 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Find try bot configurations',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--dir', '-d', default='.',
+  parser.add_argument('--src-dir', '--dir', '-d', default='.',
       help='Chromium source directory.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
   args = parser.parse_args()
 
-  args.dir = path.abspath(args.dir)
-  if path.basename(args.dir) == 'chromium' and path.exists(path.join(args.dir, 'src')):
-    args.dir = path.join(args.dir, 'src')
+  args.src_dir = path.abspath(args.src_dir)
+  if path.basename(args.src_dir) == 'chromium' and path.exists(path.join(args.src_dir, 'src')):
+    args.src_dir = path.join(args.src_dir, 'src')
   return args
 
 
@@ -135,7 +135,7 @@ def main():
 
   tryjobs = []
   for bot_file in OFFICIAL_TRYJOB_CONFIG:
-    tryjobs += find_intel_tryjob(path.join(args.dir, bot_file))
+    tryjobs += find_intel_tryjob(path.join(args.src_dir, bot_file))
   if not tryjobs:
     handle_error('Failed to find intel try bot')
 
@@ -164,12 +164,13 @@ def main():
         else:
           handle_error('Missing try job arguments: ' + name)
 
-  for test_tag in config['tryjob']:
-    pos = test_tag[0].find('(')
-    test_name = test_tag[0][0:pos] if pos > 0 else test_tag[0]
-    if 'win' in test_tag and test_name in win_tests:
+  for test_name, platform, _, _ in config['tryjob']:
+    pos = test_name.find('(')
+    if pos > 0:
+      test_name = test_name[0:pos]
+    if 'win' in platform and test_name in win_tests:
       win_tests.pop(test_name)
-    if 'linux' in test_tag and test_name in linux_tests:
+    if 'linux' in platform and test_name in linux_tests:
       linux_tests.pop(test_name)
 
   if win_tests:

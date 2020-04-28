@@ -26,18 +26,18 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Parse test results and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--type', '-t', nargs='+',
-      choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
-      default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
+  parser.add_argument('--test-type', '--type', '-t', nargs='+',
+      choices=['webgl', 'blink', 'dawn', 'angle', 'gpu', 'aquarium'],
+      default=['webgl', 'blink', 'dawn', 'angle', 'gpu'],
       help='The test results to parse, you can specify multiple. Default is all except aquarium.\n\n')
-  parser.add_argument('--dir', '-d', default='.',
+  parser.add_argument('--result-dir', '--dir', '-d', default='.',
       help='The directory where the results locate in.\n\n')
   args = parser.parse_args()
 
-  if 'aquarium' in args.type and len(args.type) > 1:
+  if 'aquarium' in args.test_type and len(args.test_type) > 1:
     raise Exception('Can not merge aquarium result with other results')
 
-  args.dir = path.abspath(args.dir)
+  args.result_dir = path.abspath(args.result_dir)
   return args
 
 
@@ -244,10 +244,10 @@ def merge_shard_result(test_suites):
       name, ext = path.splitext(name)
       if not ext:
         break
-    job_type, backend = name.split('_', 1)
-    for tags in config['tryjob']:
-      if tags[1] == job_type and tags[2] == backend:
-        name = tags[0]
+    test_type, backend = name.split('_', 1)
+    for test_name, _, test_arg, _ in config['tryjob']:
+      if test_arg[0] == test_type and test_arg[1] == backend:
+        name = test_name
         break
 
     merged_result.setdefault(name, TestSuite(name))
@@ -306,10 +306,10 @@ def generate_test_report(test_suites):
 def main():
   args = parse_arguments()
 
-  if args.type == ['aquarium']:
+  if args.test_type == ['aquarium']:
     perf_results = []
     max_name_len = 0
-    for file_name in list_file(args.dir):
+    for file_name in list_file(args.result_dir):
       file_name = path.basename(file_name)
       if file_name.startswith('aquarium') and file_name.endswith('.log'):
         result = parse_aquarium_result_file(file_name)
@@ -325,17 +325,17 @@ def main():
       print(report, end='')
   else:
     test_suites = []
-    for result_type in args.type:
-      for file_name in list_file(args.dir):
+    for test_type in args.test_type:
+      for file_name in list_file(args.result_dir):
         file_name = path.basename(file_name)
         test_suite = None
-        if result_type in ['webgl', 'webgpu']:
-          if file_name.startswith(result_type) and file_name.endswith('.json'):
+        if test_type in ['webgl', 'blink']:
+          if file_name.startswith(test_type) and file_name.endswith('.json'):
             test_suite = parse_json_result_file(file_name)
-        elif result_type in ['angle', 'gpu']:
-          if file_name.startswith(result_type) and file_name.endswith('.log'):
+        elif test_type in ['angle', 'gpu']:
+          if file_name.startswith(test_type) and file_name.endswith('.log'):
             test_suite = parse_gtest_result_file(file_name)
-        elif result_type == 'dawn':
+        elif test_type == 'dawn':
           if file_name.startswith('dawn') and file_name.endswith('.log'):
             test_suite = parse_dawn_result_file(file_name)
         if test_suite and not test_suite.IsEmpty():
