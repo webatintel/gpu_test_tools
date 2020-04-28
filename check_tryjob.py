@@ -164,11 +164,13 @@ def main():
         else:
           handle_error('Missing try job arguments: ' + name)
 
-  for key, value in config['tryjob'].items():
-    if 'win' in value and key in win_tests:
-      win_tests.pop(key)
-    if 'linux' in value and key in linux_tests:
-      linux_tests.pop(key)
+  for test_tag in config['tryjob']:
+    pos = test_tag[0].find('(')
+    test_name = test_tag[0][0:pos] if pos > 0 else test_tag[0]
+    if 'win' in test_tag and test_name in win_tests:
+      win_tests.pop(test_name)
+    if 'linux' in test_tag and test_name in linux_tests:
+      linux_tests.pop(test_name)
 
   if win_tests:
     handle_error('Missing try job on Windows: ' + ', '.join(win_tests.keys()))
