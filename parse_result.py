@@ -26,7 +26,7 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Parse test results and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--type', '-t', nargs='*',
+  parser.add_argument('--type', '-t', nargs='+',
       choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
       default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
       help='The test results to parse, you can specify multiple. Default is all except aquarium.\n\n')

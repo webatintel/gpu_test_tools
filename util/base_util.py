@@ -3,8 +3,10 @@
 import datetime
 import email.utils
 import os
+import random
 import re
 import smtplib
+import string
 import subprocess
 import sys
 
@@ -34,6 +36,9 @@ def re_match(pattern, text):
     matcher = re.compile(pattern)
     MATCHERS[pattern] = matcher
   return matcher.match(text)
+
+def random_string(size):
+  return ''.join(random.choice(string.ascii_lowercase) for i in range(size))
 
 def get_currenttime(format=None):
   time = datetime.datetime.now()

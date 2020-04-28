@@ -27,7 +27,7 @@ def parse_arguments():
                   'Once the tests are finished, the statistics are output to the screen and the file "tryjob_report.txt".\n'\
                   'The tryjob configuration is in "tryjob.json".\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--job', '-j', nargs='*',
+  parser.add_argument('--job', '-j', nargs='+',
       choices=['webgl', 'webgpu', 'dawn', 'angle', 'gpu', 'aquarium'],
       default=['webgl', 'webgpu', 'dawn', 'angle', 'gpu'],
       help='You can select one or more job types from the candidates. Default is all job types except Aquarium.\n'\
@@ -37,7 +37,7 @@ def parse_arguments():
            'angle    :  ANGLE tests\n'\
            'gpu      :  Native GPU tests\n'\
            'aquarium :  Aquarium performance tests\n\n')
-  parser.add_argument('--test-filter', '-f', nargs='*',
+  parser.add_argument('--test-filter', '-f', nargs='+',
       help='You can specify one or more keywords (the logic is OR), the test that contains the keyword will be run.\n\n')
   parser.add_argument('--result-dir', '-r',
       help='Where to hold test logs and test results. The final report "tryjob_report.txt" is generated here as well.\n'\

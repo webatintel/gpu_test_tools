@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import sys
 import zipfile
 
 from os import path
@@ -83,3 +84,26 @@ def list_file(dir_name):
     file_name = path.join(dir_name, item)
     if path.isfile(file_name):
       yield file_name
+
+def copy_executable(src_dir, dest_dir, contents):
+  for content in contents:
+    if sys.platform == 'win32':
+      copy(path.join(src_dir, content + '.exe'), dest_dir)
+      copy(path.join(src_dir, content + '.exe.pdb'), dest_dir)
+    else:
+      copy(path.join(src_dir, content), dest_dir)
+      chmod(path.join(dest_dir, content), 755)
+
+def copy_library(src_dir, dest_dir, contents):
+  for content in contents:
+    if sys.platform == 'win32':
+      copy(path.join(src_dir, content + '.dll'), dest_dir)
+      copy(path.join(src_dir, content + '.dll.pdb'), dest_dir)
+    else:
+      copy(path.join(src_dir, 'lib' + content + '.so'), dest_dir)
+
+def copy_resource(src_dir, dest_dir, contents):
+  for content in contents:
+    target_dir = path.join(dest_dir, path.dirname(content))
+    mkdir(target_dir)
+    copy(path.join(src_dir, content), target_dir)
