@@ -8,16 +8,16 @@ from util.base_util import *
 from util.file_util import *
 from os import path
 
-PATTERN_GTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
-PATTERN_GTEST_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
-PATTERN_GTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
-PATTERN_GTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
-PATTERN_GTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
-PATTERN_GTEST_ERROR = r'^(.+) \(.+:\d+\)$'
-PATTERN_DAWN_RESULT_START = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
-PATTERN_DAWN_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
-PATTERN_DAWN_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./]+)$'
-PATTERN_DAWN_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./]+),.+$'
+PATTERN_UNITTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
+PATTERN_UNITTEST_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
+PATTERN_UNITTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
+PATTERN_UNITTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
+PATTERN_UNITTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
+PATTERN_UNITTEST_ERROR = r'^(.+) \(.+:\d+\)$'
+PATTERN_GTEST_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./<>]+), .+ \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_OVER = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 TRYJOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'tryjob.json')
@@ -150,14 +150,14 @@ def parse_json_result_file(result_file):
   return test_suite
 
 
-def parse_gtest_result_file(result_file):
+def parse_unittest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   test_suite = TestSuite(result_name)
   error_result = ''
   for line in read_line(result_file):
     line = line.strip()
     if error_result:
-      match = re_match(PATTERN_GTEST_ERROR, line)
+      match = re_match(PATTERN_UNITTEST_ERROR, line)
       if match:
         result = TestResult(match.group(1))
         if error_result != 'skip':
@@ -173,7 +173,7 @@ def parse_gtest_result_file(result_file):
             break
         continue
     else:
-      match = re_match(PATTERN_GTEST_CASE, line)
+      match = re_match(PATTERN_UNITTEST_CASE, line)
       if match:
         result = TestResult(match.group(1))
         result.result = True
@@ -181,48 +181,46 @@ def parse_gtest_result_file(result_file):
         test_suite.AddResult(result)
         continue
 
-    if re_match(PATTERN_GTEST_RESULT_FAIL, line):
+    if re_match(PATTERN_UNITTEST_RESULT_FAIL, line):
       error_result = 'fail'
-    elif re_match(PATTERN_GTEST_RESULT_CRASH, line):
+    elif re_match(PATTERN_UNITTEST_RESULT_CRASH, line):
       error_result = 'crash'
-    elif re_match(PATTERN_GTEST_RESULT_TIMEOUT, line):
+    elif re_match(PATTERN_UNITTEST_RESULT_TIMEOUT, line):
       error_result = 'timeout'
-    elif re_match(PATTERN_GTEST_RESULT_SKIP, line):
+    elif re_match(PATTERN_UNITTEST_RESULT_SKIP, line):
       error_result = 'skip'
 
   return test_suite
 
 
-def parse_dawn_result_file(result_file):
+def parse_gtest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   test_suite = TestSuite(result_name)
-  test_result_started = False
   for line in read_line(result_file):
     line = line.strip()
-    if not test_result_started:
-      if re_match(PATTERN_DAWN_RESULT_START, line):
-        test_result_started = True
-        continue
+    if re_match(PATTERN_GTEST_RESULT_OVER, line):
+      break
 
-      match = re_match(PATTERN_DAWN_RESULT_OK, line)
-      if match:
-        result = TestResult(match.group(1))
-        result.result = True
-        result.is_expected = True
-        test_suite.AddResult(result)
+    match = re_match(PATTERN_GTEST_RESULT_OK, line)
+    if match:
+      result = TestResult(match.group(1))
+      result.result = True
+      result.is_expected = True
+      test_suite.AddResult(result)
+      continue
 
-    else:
-      match = re_match(PATTERN_DAWN_RESULT_SKIP, line)
-      if match:
-        result = TestResult(match.group(1))
-        test_suite.AddResult(result)
-        continue
+    match = re_match(PATTERN_GTEST_RESULT_SKIP, line)
+    if match:
+      result = TestResult(match.group(1))
+      test_suite.AddResult(result)
+      continue
 
-      match = re_match(PATTERN_DAWN_RESULT_FAIL, line)
-      if match:
-        result = TestResult(match.group(1))
-        result.result = False
-        test_suite.AddResult(result)
+    match = re_match(PATTERN_GTEST_RESULT_FAIL, line)
+    if match:
+      result = TestResult(match.group(1))
+      result.result = False
+      test_suite.AddResult(result)
+      continue
 
   return test_suite
 
@@ -334,12 +332,11 @@ def main():
         if test_type in ['webgl', 'blink']:
           if file_name.startswith(test_type) and file_name.endswith('.json'):
             test_suite = parse_json_result_file(file_name)
-        elif test_type in ['angle', 'gpu']:
+        elif test_type in ['dawn', 'angle', 'gpu']:
           if file_name.startswith(test_type) and file_name.endswith('.log'):
-            test_suite = parse_gtest_result_file(file_name)
-        elif test_type == 'dawn':
-          if file_name.startswith('dawn') and file_name.endswith('.log'):
-            test_suite = parse_dawn_result_file(file_name)
+            test_suite = parse_unittest_result_file(file_name)
+            if not test_suite:
+              test_suite = parse_gtest_result_file(file_name)
         if test_suite:
           test_suites.append(test_suite)
 

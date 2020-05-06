@@ -185,7 +185,7 @@ def generate_blink_arguments(args):
   return total_args
 
 
-def generate_gtest_arguments(args):
+def generate_unittest_arguments(args):
   total_args = []
   if args.backend == 'perf':
     total_args += ['--verbose', '-v',
@@ -296,7 +296,7 @@ def main():
         cmd = [path.join(args.build_dir, GL_TEST_CMD)]
       elif args.backend == 'vulkan':
         cmd = [path.join(args.build_dir, VULKAN_TEST_CMD)]
-    cmd += generate_gtest_arguments(args)
+    cmd += generate_unittest_arguments(args)
     total_shards = '--test-launcher-total-shards'
     shard_index = '--test-launcher-shard-index'
   cmd += extra_args

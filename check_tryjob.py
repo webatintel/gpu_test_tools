@@ -68,7 +68,7 @@ def find_gtest_tests(items):
   return tests
 
 
-def find_script_tests(items):
+def find_isolated_scripts(items):
   tests = []
   for item in items:
     name = item['name']
@@ -119,7 +119,7 @@ def find_intel_tryjob(bot_file):
         if 'gtest_tests' in value:
           job.tests += find_gtest_tests(value['gtest_tests'])
         if 'isolated_scripts' in value:
-          job.tests += find_script_tests(value['isolated_scripts'])
+          job.tests += find_isolated_scripts(value['isolated_scripts'])
         tryjobs.append(job)
   return tryjobs
 
