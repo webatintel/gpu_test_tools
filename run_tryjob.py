@@ -197,8 +197,7 @@ def main():
       aquarium_build_failed = True
 
   # Run tests
-  if not args.dry_run:
-    mkdir(args.result_dir)
+  mkdir(args.result_dir)
   for test_type, backend in args.tryjob:
     if test_type == 'aquarium' and aquarium_build_failed:
       continue

@@ -8,34 +8,34 @@ from util.base_util import *
 from util.file_util import *
 from os import path
 
-PATTERN_GTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
-PATTERN_GTEST_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
-PATTERN_GTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
-PATTERN_GTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
-PATTERN_GTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
-PATTERN_GTEST_ERROR = r'^(.+) \(.+:\d+\)$'
-PATTERN_DAWN_RESULT_START = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
-PATTERN_DAWN_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
-PATTERN_DAWN_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./]+)$'
-PATTERN_DAWN_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./]+),.+$'
+PATTERN_UNITTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
+PATTERN_UNITTEST_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
+PATTERN_UNITTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
+PATTERN_UNITTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
+PATTERN_UNITTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
+PATTERN_UNITTEST_ERROR = r'^(.+) \(.+:\d+\)$'
+PATTERN_GTEST_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./<>]+), .+ \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_OVER = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 TRYJOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'tryjob.json')
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
-      description='Parse test results and generate report',
+      description='Parse test result and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('--test-type', '--type', '-t', nargs='+',
       choices=['webgl', 'blink', 'dawn', 'angle', 'gpu', 'aquarium'],
       default=['webgl', 'blink', 'dawn', 'angle', 'gpu'],
-      help='The test results to parse, you can specify multiple. Default is all except aquarium.\n\n')
+      help='What type of test result to parse, you can specify multiple. Default is all except aquarium.\n\n')
   parser.add_argument('--result-dir', '--dir', '-d', default='.',
-      help='The directory where the results locate in.\n\n')
+      help='The directory where the result files are located. Default is current directory.\n\n')
   args = parser.parse_args()
 
   if 'aquarium' in args.test_type and len(args.test_type) > 1:
-    raise Exception('Can not merge aquarium result with other results')
+    raise Exception('Can not merge aquarium result with others')
 
   args.result_dir = path.abspath(args.result_dir)
   return args
@@ -50,15 +50,14 @@ class PerfResult(object):
 class TestResult(object):
   def __init__(self, name):
     self.name = name
-    self.test_suite = None
-    self.duration = None
-    self.retry = 0
-    self.result = None
+    self.suite_name = None
+    self.result = None # True: Passed; False: Failed; None: Skipped
     self.is_expected = False
-    self.is_skipped = False
     self.is_flaky = False
     self.is_timeout = False
     self.is_crash = False
+    self.retry = 0
+    self.duration = None
 
 
 class TestSuite(object):
@@ -71,9 +70,21 @@ class TestSuite(object):
     self.unexpected_failed = []
     self.skipped = []
 
+  def __iadd__(self, other):
+    self.actual_passed += other.actual_passed
+    self.actual_failed += other.actual_failed
+    self.flaky_passed += other.flaky_passed
+    self.unexpected_passed += other.unexpected_passed
+    self.unexpected_failed += other.unexpected_failed
+    self.skipped += other.skipped
+    return self
+
+  def __bool__(self):
+    return bool(self.actual_passed or self.actual_failed or self.skipped)
+
   def AddResult(self, result):
-    result.test_suite = self
-    if result.is_skipped:
+    result.suite_name = self.name
+    if result.result is None:
       self.skipped.append(result)
     elif result.result:
       self.actual_passed.append(result)
@@ -86,29 +97,16 @@ class TestSuite(object):
       if not result.is_expected:
         self.unexpected_failed.append(result)
 
-  def IsEmpty(self):
-    if self.actual_passed or self.actual_failed or self.skipped:
-      return False
-    return True
-
 
 def parse_json_result(key, value):
   test_result = TestResult(key)
   actual = value['actual'].split(' ')
   if len(actual) == 1 and actual[0] == 'SKIP':
-    test_result.is_skipped = True
     return test_result
 
   test_result.result = False
   for item in actual:
-    test_result.result = test_result.result or item == 'PASS'
-
-  if 'time' in value:
-    test_result.duration = value['time']
-  elif 'times' in value:
-    test_result.duration = 0
-    for item in value['times']:
-      test_result.duration = test_result.duration + item
+    test_result.result |= (item == 'PASS')
 
   if value['actual'] == value['expected']:
     test_result.is_expected = True
@@ -125,11 +123,19 @@ def parse_json_result(key, value):
     test_result.is_timeout = True
 
   test_result.retry = len(actual) - 1
+
+  if 'time' in value:
+    test_result.duration = value['time']
+  elif 'times' in value:
+    test_result.duration = 0
+    for item in value['times']:
+      test_result.duration += item
+
   return test_result
 
 
 def parse_json_result_dict(result_dict, test_suite, prefix=''):
-  for key,value in result_dict.items():
+  for key, value in result_dict.items():
     if 'actual' in value and 'expected' in value:
       test_suite.AddResult(parse_json_result(prefix + key, value))
     else:
@@ -144,19 +150,17 @@ def parse_json_result_file(result_file):
   return test_suite
 
 
-def parse_gtest_result_file(result_file):
+def parse_unittest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   test_suite = TestSuite(result_name)
   error_result = ''
   for line in read_line(result_file):
     line = line.strip()
     if error_result:
-      match = re_match(PATTERN_GTEST_ERROR, line)
+      match = re_match(PATTERN_UNITTEST_ERROR, line)
       if match:
         result = TestResult(match.group(1))
-        if error_result == 'skip':
-          result.is_skipped = True
-        else:
+        if error_result != 'skip':
           result.result = False
           if error_result == 'timeout':
             result.is_timeout = True
@@ -169,7 +173,7 @@ def parse_gtest_result_file(result_file):
             break
         continue
     else:
-      match = re_match(PATTERN_GTEST_CASE, line)
+      match = re_match(PATTERN_UNITTEST_CASE, line)
       if match:
         result = TestResult(match.group(1))
         result.result = True
@@ -177,49 +181,46 @@ def parse_gtest_result_file(result_file):
         test_suite.AddResult(result)
         continue
 
-    if re_match(PATTERN_GTEST_RESULT_FAIL, line):
+    if re_match(PATTERN_UNITTEST_RESULT_FAIL, line):
       error_result = 'fail'
-    elif re_match(PATTERN_GTEST_RESULT_CRASH, line):
+    elif re_match(PATTERN_UNITTEST_RESULT_CRASH, line):
       error_result = 'crash'
-    elif re_match(PATTERN_GTEST_RESULT_TIMEOUT, line):
+    elif re_match(PATTERN_UNITTEST_RESULT_TIMEOUT, line):
       error_result = 'timeout'
-    elif re_match(PATTERN_GTEST_RESULT_SKIP, line):
+    elif re_match(PATTERN_UNITTEST_RESULT_SKIP, line):
       error_result = 'skip'
 
   return test_suite
 
 
-def parse_dawn_result_file(result_file):
+def parse_gtest_result_file(result_file):
   result_name, result_ext = path.splitext(path.basename(result_file))
   test_suite = TestSuite(result_name)
-  test_result_started = False
   for line in read_line(result_file):
     line = line.strip()
-    if not test_result_started:
-      if re_match(PATTERN_DAWN_RESULT_START, line):
-        test_result_started = True
-        continue
+    if re_match(PATTERN_GTEST_RESULT_OVER, line):
+      break
 
-      match = re_match(PATTERN_DAWN_RESULT_OK, line)
-      if match:
-        result = TestResult(match.group(1))
-        result.result = True
-        result.is_expected = True
-        test_suite.AddResult(result)
+    match = re_match(PATTERN_GTEST_RESULT_OK, line)
+    if match:
+      result = TestResult(match.group(1))
+      result.result = True
+      result.is_expected = True
+      test_suite.AddResult(result)
+      continue
 
-    else:
-      match = re_match(PATTERN_DAWN_RESULT_SKIP, line)
-      if match:
-        result = TestResult(match.group(1))
-        result.is_skipped = True
-        test_suite.AddResult(result)
-        continue
+    match = re_match(PATTERN_GTEST_RESULT_SKIP, line)
+    if match:
+      result = TestResult(match.group(1))
+      test_suite.AddResult(result)
+      continue
 
-      match = re_match(PATTERN_DAWN_RESULT_FAIL, line)
-      if match:
-        result = TestResult(match.group(1))
-        result.result = False
-        test_suite.AddResult(result)
+    match = re_match(PATTERN_GTEST_RESULT_FAIL, line)
+    if match:
+      result = TestResult(match.group(1))
+      result.result = False
+      test_suite.AddResult(result)
+      continue
 
   return test_suite
 
@@ -251,14 +252,13 @@ def merge_shard_result(test_suites):
         break
 
     merged_result.setdefault(name, TestSuite(name))
-    merged_result[name].actual_passed += test_suite.actual_passed
-    merged_result[name].actual_failed += test_suite.actual_failed
-    merged_result[name].flaky_passed += test_suite.flaky_passed
-    merged_result[name].unexpected_passed += test_suite.unexpected_passed
-    merged_result[name].unexpected_failed += test_suite.unexpected_failed
-    merged_result[name].skipped += test_suite.skipped
+    merged_result[name] += test_suite
 
-  return sorted(merged_result.values(), key=lambda suite: suite.name)
+  sorted_suites = []
+  for test_name, _, _, _ in config['tryjob']:
+    if test_name in merged_result:
+      sorted_suites.append(merged_result.pop(test_name))
+  return sorted_suites + list(merged_result.values())
 
 
 def generate_test_report(test_suites):
@@ -269,19 +269,19 @@ def generate_test_report(test_suites):
     if test_suite.flaky_passed:
       detailed_cases.setdefault('Flaky Pass', [])
       for test_result in test_suite.flaky_passed:
-        result = '%s    %s' % (test_result.test_suite.name, test_result.name)
+        result = '%s    %s' % (test_result.suite_name, test_result.name)
         detailed_cases['Flaky Pass'].append(result)
 
     if test_suite.unexpected_passed:
       detailed_cases.setdefault('New Pass', [])
       for test_result in test_suite.unexpected_passed:
-        result = '%s    %s' % (test_result.test_suite.name, test_result.name)
+        result = '%s    %s' % (test_result.suite_name, test_result.name)
         detailed_cases['New Pass'].append(result)
 
     if test_suite.unexpected_failed:
       detailed_cases.setdefault('New Fail', [])
       for test_result in test_suite.unexpected_failed:
-        result = '%s    %s' % (test_result.test_suite.name, test_result.name)
+        result = '%s    %s' % (test_result.suite_name, test_result.name)
         detailed_cases['New Fail'].append(result)
 
   name_format = '{:<%d}' % (max_name_len+2)
@@ -332,13 +332,12 @@ def main():
         if test_type in ['webgl', 'blink']:
           if file_name.startswith(test_type) and file_name.endswith('.json'):
             test_suite = parse_json_result_file(file_name)
-        elif test_type in ['angle', 'gpu']:
+        elif test_type in ['dawn', 'angle', 'gpu']:
           if file_name.startswith(test_type) and file_name.endswith('.log'):
-            test_suite = parse_gtest_result_file(file_name)
-        elif test_type == 'dawn':
-          if file_name.startswith('dawn') and file_name.endswith('.log'):
-            test_suite = parse_dawn_result_file(file_name)
-        if test_suite and not test_suite.IsEmpty():
+            test_suite = parse_unittest_result_file(file_name)
+            if not test_suite:
+              test_suite = parse_gtest_result_file(file_name)
+        if test_suite:
           test_suites.append(test_suite)
 
     if test_suites:

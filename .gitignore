@@ -1,2 +1,3 @@
 # Test directories
 tryjob
+*.code-workspace
