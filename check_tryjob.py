@@ -131,7 +131,7 @@ def main():
   def handle_error(error):
     print(error)
     if args.email:
-      send_email(config['receiver']['admin'], error)
+      send_email(config['email']['receiver']['admin'], error)
 
   tryjobs = []
   for bot_file in OFFICIAL_TRYJOB_CONFIG:
