@@ -12,16 +12,17 @@ from util.system_util import *
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
 CHROME_TARGET = [
-  'chrome',
-  'content_shell',
-  'telemetry_gpu_integration_test',
-  'imagediff',
-  'gl_tests',
-  'vulkan_tests',
-  'dawn_end2end_tests',
-  'dawn_perf_tests',
   'angle_end2end_tests',
   'angle_perftests',
+  'chrome',
+  'content_shell',
+  'dawn_end2end_tests',
+  'dawn_perf_tests',
+  'gl_tests',
+  'gpu_unittests',
+  'imagediff',
+  'vulkan_tests',
+  'telemetry_gpu_integration_test',
 ]
 
 DAWN_TARGET = [
@@ -39,23 +40,32 @@ AQUARIUM_TARGET = [
 ]
 
 CHROME_EXECUTABLE = [
+  'angle_end2end_tests',
+  'angle_perftests',
   'chrome',
   'content_shell',
   'crashpad_database_util',
-  'image_diff',
-  'trace_processor_shell',
-  'gl_tests',
-  'vulkan_tests',
+  'crashpad_handler',
   'dawn_end2end_tests',
   'dawn_perf_tests',
-  'angle_end2end_tests',
-  'angle_perftests',
+  'gl_tests',
+  'gpu_unittests',
+  'image_diff',
+  'trace_processor_shell',
+  'vulkan_tests',
+]
+
+CHROME_EXECUTABLE_BREAKPAD = [
+  'dump_syms',
+  'minidump_dump',
+  'minidump_stackwalk',
 ]
 
 CHROME_LIBRARY = [
   'angle_util',
-  'blink_test_plugin',
   'blink_deprecated_test_plugin',
+  'blink_test_plugin',
+  'libGLESv1_CM',
 ]
 
 CHROME_RESOURCE = [
@@ -145,6 +155,7 @@ def build_chrome(args):
   build_args = {}
   build_args['proprietary_codecs'] = 'true'
   build_args['ffmpeg_branding'] = '"Chrome"'
+  build_args['use_dawn'] = 'true'
   if args.build_type == 'default':
     build_args['is_debug'] = 'false'
     build_args['is_component_build'] = 'false'
@@ -233,6 +244,8 @@ def pack_chrome(args):
   src_build = path.join(args.src_dir, args.build_dir)
   dest_build = path.join(args.pack_dir, args.build_dir)
   copy_executable(src_build, dest_build, CHROME_EXECUTABLE)
+  if is_linux():
+    copy_executable(src_build, dest_build, CHROME_EXECUTABLE_BREAKPAD)
   copy_library(src_build, dest_build, CHROME_LIBRARY)
   copy_resource(src_build, dest_build, CHROME_RESOURCE)
   copy_resource(args.src_dir, args.pack_dir, CHROME_SRC_RESOURCE)

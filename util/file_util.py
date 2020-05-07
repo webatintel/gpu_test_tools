@@ -88,8 +88,11 @@ def list_file(dir_name):
 def copy_executable(src_dir, dest_dir, contents):
   for content in contents:
     if sys.platform == 'win32':
-      copy(path.join(src_dir, content + '.exe'), dest_dir)
-      copy(path.join(src_dir, content + '.exe.pdb'), dest_dir)
+      content += '.exe'
+      copy(path.join(src_dir, content), dest_dir)
+      content += '.pdb'
+      if path.exists(content):
+        copy(path.join(src_dir, content), dest_dir)
     else:
       copy(path.join(src_dir, content), dest_dir)
       chmod(path.join(dest_dir, content), 755)
@@ -97,10 +100,16 @@ def copy_executable(src_dir, dest_dir, contents):
 def copy_library(src_dir, dest_dir, contents):
   for content in contents:
     if sys.platform == 'win32':
-      copy(path.join(src_dir, content + '.dll'), dest_dir)
-      copy(path.join(src_dir, content + '.dll.pdb'), dest_dir)
+      content += '.dll'
+      copy(path.join(src_dir, content), dest_dir)
+      content += '.pdb'
+      if path.exists(content):
+        copy(path.join(src_dir, content), dest_dir)
     else:
-      copy(path.join(src_dir, 'lib' + content + '.so'), dest_dir)
+      content += '.so'
+      if not content.startswith('lib'):
+        content = 'lib' + content
+      copy(path.join(src_dir, content), dest_dir)
 
 def copy_resource(src_dir, dest_dir, contents):
   for content in contents:
