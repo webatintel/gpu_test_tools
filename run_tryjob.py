@@ -204,14 +204,14 @@ def main():
 
     cmd = [path.join(BIN_DIR, 'run_gpu_test'), test_type, '--backend', backend, '--target', args.target]
     if test_type == 'aquarium':
-      assert args.dry_run or args.aquarium_dir
+      assert args.aquarium_dir
       cmd += ['--dir', args.aquarium_dir]
     elif test_type == 'angle' and args.angle_dir:
       cmd += ['--dir', args.angle_dir]
     elif test_type == 'dawn' and args.dawn_dir:
       cmd += ['--dir', args.dawn_dir]
     else:
-      assert args.dry_run or args.chrome_dir
+      assert args.chrome_dir
       cmd += ['--dir', args.chrome_dir]
 
     for key in ['%s_%s' % (test_type, backend), test_type]:

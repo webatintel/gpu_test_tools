@@ -66,6 +66,7 @@ def write_line(file_name, lines):
   if lines:
     with open(file_name, 'w') as f:
       f.write('\n'.join(lines))
+      f.write('\n')
 
 def read_file(file_name):
   try:

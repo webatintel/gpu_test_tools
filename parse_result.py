@@ -263,26 +263,14 @@ def merge_shard_result(test_suites):
 
 def generate_test_report(test_suites):
   max_name_len = 0
-  detailed_cases = {}
+  has_new_fail = False
+  has_new_pass = False
+  has_flaky_pass = False
   for test_suite in test_suites:
     max_name_len = max(max_name_len, len(test_suite.name))
-    if test_suite.flaky_passed:
-      detailed_cases.setdefault('Flaky Pass', [])
-      for test_result in test_suite.flaky_passed:
-        result = '%s    %s' % (test_result.suite_name, test_result.name)
-        detailed_cases['Flaky Pass'].append(result)
-
-    if test_suite.unexpected_passed:
-      detailed_cases.setdefault('New Pass', [])
-      for test_result in test_suite.unexpected_passed:
-        result = '%s    %s' % (test_result.suite_name, test_result.name)
-        detailed_cases['New Pass'].append(result)
-
-    if test_suite.unexpected_failed:
-      detailed_cases.setdefault('New Fail', [])
-      for test_result in test_suite.unexpected_failed:
-        result = '%s    %s' % (test_result.suite_name, test_result.name)
-        detailed_cases['New Fail'].append(result)
+    has_new_fail |= bool(test_suite.unexpected_failed)
+    has_new_pass |= (bool(test_suite.unexpected_passed) and not test_suite.name.startswith('webgpu_blink'))
+    has_flaky_pass |= bool(test_suite.flaky_passed)
 
   name_format = '{:<%d}' % (max_name_len+2)
   report = 'Test Result:\n'
@@ -295,11 +283,26 @@ def generate_test_report(test_suites):
     report += '{:<15}'.format('[New Pass:%d]' % len(test_suite.unexpected_passed))
     report += '[New Fail:%d]\n' % len(test_suite.unexpected_failed)
 
-  if detailed_cases:
-    for name, results in detailed_cases.items():
-      report += '\n%s:\n' % name
-      for result in results:
-        report += '%s\n' % result
+  if has_new_fail:
+    report += '\nNew Fail:\n'
+    for test_suite in test_suites:
+      for test_result in test_suite.unexpected_failed:
+        report += '%s    %s\n' % (test_result.suite_name, test_result.name)
+
+  if has_new_pass:
+    report += '\nNew Pass:\n'
+    for test_suite in test_suites:
+      if test_suite.name.startswith('webgpu_blink'):
+        continue
+      for test_result in test_suite.unexpected_passed:
+        report += '%s    %s\n' % (test_result.suite_name, test_result.name)
+
+  if has_flaky_pass:
+    report += '\nFlaky Pass:\n'
+    for test_suite in test_suites:
+      for test_result in test_suite.flaky_passed:
+        report += '%s    %s\n' % (test_result.suite_name, test_result.name)
+
   return report
 
 
@@ -326,17 +329,17 @@ def main():
   else:
     test_suites = []
     for test_type in args.test_type:
-      for file_name in list_file(args.result_dir):
-        file_name = path.basename(file_name)
+      for file_path in list_file(args.result_dir):
+        file_name = path.basename(file_path)
         test_suite = None
         if test_type in ['webgl', 'blink']:
           if file_name.startswith(test_type) and file_name.endswith('.json'):
-            test_suite = parse_json_result_file(file_name)
+            test_suite = parse_json_result_file(file_path)
         elif test_type in ['dawn', 'angle', 'gpu']:
           if file_name.startswith(test_type) and file_name.endswith('.log'):
-            test_suite = parse_unittest_result_file(file_name)
+            test_suite = parse_unittest_result_file(file_path)
             if not test_suite:
-              test_suite = parse_gtest_result_file(file_name)
+              test_suite = parse_gtest_result_file(file_path)
         if test_suite:
           test_suites.append(test_suite)
 
