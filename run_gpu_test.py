@@ -45,8 +45,8 @@ def parse_arguments():
            'aquarium :  Aquarium tests\n\n')
   parser.add_argument('--backend', '-b', required=True,
       choices=['validating', 'gl', 'vulkan', 'd3d9', 'd3d11', 'd3d12', 
-               'webgpu', 'end2end', 'end2end_wire', 'end2end_validation', 'perf',
-               'dawn_vulkan', 'dawn_d3d12'],
+               'webgpu', 'webgpu_validation', 'end2end', 'end2end_wire', 'end2end_validation',
+               'perf', 'dawn_vulkan', 'dawn_d3d12'],
       help='The backend of the test. The combination of test type and backend:\n'\
            '\n[webgl/webgl2]\n'\
            'validating : webgl_conformance_validating_tests\n'\
@@ -55,7 +55,8 @@ def parse_arguments():
            'd3d9       : webgl_conformance_d3d9_passthrough_tests\n'\
            'd3d11      : webgl_conformance_tests\n'\
            '\n[blink]\n'\
-           'webgpu     : webgpu_blink_web_tests\n'\
+           'webgpu            : webgpu_blink_web_tests\n'\
+           'webgpu_validation : webgpu_blink_web_tests_with_backend_validation\n'\
            '\n[dawn]\n'\
            'end2end            : dawn_end2end_tests\n'\
            'end2end_wire       : dawn_end2end_wire_tests\n'\
@@ -95,7 +96,7 @@ def parse_arguments():
     if not args.backend in ['validating', 'gl', 'vulkan', 'd3d9', 'd3d11']:
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.test_type == 'blink':
-    if not args.backend in ['webgpu']:
+    if not args.backend in ['webgpu', 'webgpu_validation']:
       raise Exception('Unsupported backend: ' + args.backend)
   elif args.test_type == 'dawn':
     if not args.backend in ['end2end', 'end2end_wire', 'end2end_validation', 'perf']:
@@ -182,6 +183,8 @@ def generate_blink_arguments(args):
   elif is_linux():
     total_args += ['--additional-driver-flag=--use-vulkan=native',
                    '--no-xvfb']
+  if args.backend == 'webgpu_validation':
+    total_args += ['--additional-driver-flag=--enable-dawn-backend-validation']
   return total_args
 
 

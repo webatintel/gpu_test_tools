@@ -262,21 +262,17 @@ def update_aquarium_deps(args):
     if match:
       dawn_revision = match.group(1)
       break
-  if dawn_revision:
-    print('Changed dawn revision of DEPS to latest master branch')
-  else:
+  if not dawn_revision:
     raise Exception('Dawn revision not found')
 
   deps_file = path.join(args.src_dir, 'DEPS')
-  deps_contents = []
-  for line in read_line(deps_file):
-    line = line.rstrip()
-    match = re_match(PATTERN_DAWN_REVISION, line)
+  deps_lines = read_file(deps_file).splitlines()
+  for i in range(0, len(deps_lines)):
+    match = re_match(PATTERN_DAWN_REVISION, deps_lines[i])
     if match:
-      deps_contents.append('  \'dawn_revision\': \'' + dawn_revision + '\',')
-    else:
-      deps_contents.append(line)
-  write_line(deps_file, deps_contents)
+      deps_lines[i] = '  \'dawn_revision\': \'' + dawn_revision + '\','
+      print('Changed dependent Dawn revision to its latest master branch')
+  write_line(deps_file, deps_lines)
 
 
 def main():
