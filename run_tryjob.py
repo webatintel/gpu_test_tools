@@ -24,8 +24,8 @@ PATTERN_NEW_FAIL = r'^.*\[New Fail:(\d+)\].*$'
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
   job_choice = set()
-  for _, platform, _, job_type in config['tryjob']:
-    if get_osname() in platform:
+  for _, _, job_type in config['tryjob']:
+    if get_osname() in job_type:
       job_choice |= set(job_type)
 
   parser = argparse.ArgumentParser(
@@ -33,9 +33,9 @@ def parse_arguments():
                   'Once the tests are finished, the statistics are output to the screen and the file "tryjob_report.txt".\n'\
                   'The tryjob configuration is in "tryjob.json".\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=list(job_choice), required=True,
-      help='You can select one or more job types from the candidates.\n\n')
-  parser.add_argument('--test-filter', '-f', nargs='+',
+  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=list(job_choice), default=[get_osname()],
+      help='You can select one or more jobs from the candidates. By default, all available jobs will be run.\n\n')
+  parser.add_argument('--test-filter', '--filter', '-f', nargs='+',
       help='You can specify one or more keywords (the logic is OR), the test that contains the keyword will be run.\n\n')
   parser.add_argument('--result-dir', '-r',
       help='Where to hold test logs and test results. The final report "tryjob_report.txt" is generated here as well.\n'\
@@ -61,6 +61,50 @@ def parse_arguments():
       help='Go through the process but do not run tests actually.\n\n')
   args = parser.parse_args()
 
+  print('\nRun Tests:')
+  args.run_tests = []
+  for test_name, test_arg, job_type in config['tryjob']:
+    if get_osname() not in job_type or not set(args.job_type) & set(job_type):
+      continue
+    if args.test_filter:
+      matched = False
+      for keyword in args.test_filter:
+        if keyword in test_name:
+          matched = True
+          break
+      if not matched:
+        continue
+    print(test_name)
+    args.run_tests.append(test_arg)
+  if not args.run_tests:
+    raise Exception('No available test for specified condition')
+
+  for test_type, _ in args.run_tests:
+    if test_type == 'aquarium':
+      if not args.aquarium_dir:
+        if args.dry_run:
+          args.aquarium_dir = '.'
+        else:
+          raise Exception('Please specify --aquarium-dir')
+    elif test_type == 'angle' and args.angle_dir:
+      pass
+    elif test_type == 'dawn' and args.dawn_dir:
+      pass
+    elif not args.chrome_dir:
+      if args.dry_run:
+        args.chrome_dir = '.'
+      else:
+        raise Exception('Please specify --chrome-dir')
+
+  if not args.result_dir and args.dry_run:
+    args.result_dir = '.'
+
+  args.tryjob_shards = config['tryjob_shards']
+  args.receiver_admin = config['email']['receiver']['admin']
+  args.receiver_tryjob = config['email']['receiver']['tryjob']
+  args.receiver_aquarium = config['email']['receiver']['aquarium']
+  args.aquarium_average_fps = config['aquarium_average_fps']
+
   if args.result_dir:
     args.result_dir = path.abspath(args.result_dir)
   else:
@@ -76,33 +120,6 @@ def parse_arguments():
     args.angle_dir = path.abspath(args.angle_dir)
   if args.aquarium_dir:
     args.aquarium_dir = path.abspath(args.aquarium_dir)
-
-  print('\nTests to run:')
-  args.tryjob = []
-  for test_name, platform, test_arg, job_type in config['tryjob']:
-    if get_osname() not in platform:
-      continue
-    if args.job_type and not (set(args.job_type) & set(job_type)):
-      continue
-    if args.test_filter:
-      matched = False
-      for keyword in args.test_filter:
-        if keyword in test_name:
-          matched = True
-          break
-      if not matched:
-        continue
-    print(test_name)
-    args.tryjob.append(test_arg)
-  if not args.tryjob:
-    raise Exception('No available test for specified condition')
-
-  args.tryjob_shards = config['tryjob_shards']
-  args.receiver_admin = config['email']['receiver']['admin']
-  args.receiver_tryjob = config['email']['receiver']['tryjob']
-  args.receiver_aquarium = config['email']['receiver']['aquarium']
-  args.aquarium_average_fps = config['aquarium_average_fps']
-
   return args
 
 
@@ -200,20 +217,18 @@ def main():
 
   # Run tests
   mkdir(args.result_dir)
-  for test_type, backend in args.tryjob:
+  for test_type, backend in args.run_tests:
     if test_type == 'aquarium' and aquarium_build_failed:
       continue
 
     cmd = [path.join(BIN_DIR, 'run_gpu_test'), test_type, '--backend', backend, '--target', args.target]
     if test_type == 'aquarium':
-      assert args.aquarium_dir
       cmd += ['--dir', args.aquarium_dir]
     elif test_type == 'angle' and args.angle_dir:
       cmd += ['--dir', args.angle_dir]
     elif test_type == 'dawn' and args.dawn_dir:
       cmd += ['--dir', args.dawn_dir]
     else:
-      assert args.chrome_dir
       cmd += ['--dir', args.chrome_dir]
 
     for key in ['%s_%s' % (test_type, backend), test_type]:
@@ -253,7 +268,7 @@ def main():
 
   if tryjob_report:
     title, tryjob_report = update_tryjob_report(args, tryjob_report)
-    if args.chrome_dir and not args.dry_run:
+    if args.chrome_dir:
       revision = get_chrome_revision(args.chrome_dir)
       if revision:
         header += 'Chrome: %s\n' % revision

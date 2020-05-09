@@ -19,7 +19,7 @@ run_tryjob --job [webgl webgpu dawn angle gpu aquarium]
 ```
 
 #### Specify the tryjobs: --job, --test-filter
-- `--job` is mandatory. You can select one or more job types from the candidates. For example, `--job webgpu dawn` will run all WebGPU and Dawn tests.
+- You can select one or more jobs from the candidates. For example, `--job webgpu dawn` will run all WebGPU and Dawn tests. By default, all available jobs will be run.
 - You can specify one or more keywords (the logic is *OR*), the test that contains the keyword will be run. For example, `--job webgl --test-filter d3d9 d3d11` will run WebGL tests with D3D9 and D3D11 backend.
 - For the detail of tryjobs and related tests, please refer to the section **Supporting tests**.
 

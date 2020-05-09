@@ -40,18 +40,18 @@ TRYJOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'tryjob.json')
 
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
-  test_arg = {}
+  test_backend = {}
   backend_choice = set()
-  for _, _, args, _ in config['tryjob']:
-    test_arg.setdefault(args[0], [])
-    test_arg[args[0]].append(args[1])
-    backend_choice.add(args[1])
+  for _, test_arg, _ in config['tryjob']:
+    test_backend.setdefault(test_arg[0], [])
+    test_backend[test_arg[0]].append(test_arg[1])
+    backend_choice.add(test_arg[1])
 
   parser = argparse.ArgumentParser(
       description='Run single test.\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('test_type',
-      choices=list(test_arg.keys()),
+      choices=list(test_backend.keys()),
       help='The test to run.\n\n')
   parser.add_argument('--backend', '-b', required=True,
       choices=list(backend_choice),
@@ -76,7 +76,7 @@ def parse_arguments():
       help='Go through the process but do not run tests actually.\n\n')
   args, extra_args = parser.parse_known_args()
 
-  if args.backend not in test_arg[args.test_type]:
+  if args.backend not in test_backend[args.test_type]:
     raise Exception('The %s backend is not supported by %s test' % (args.backend, args.test_type))
 
   if args.filter:

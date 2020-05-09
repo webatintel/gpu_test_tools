@@ -246,7 +246,7 @@ def merge_shard_result(test_suites):
       if not ext:
         break
     test_type, backend = name.split('_', 1)
-    for test_name, _, test_arg, _ in config['tryjob']:
+    for test_name, test_arg, _ in config['tryjob']:
       if test_arg[0] == test_type and test_arg[1] == backend:
         name = test_name
         break
@@ -255,7 +255,7 @@ def merge_shard_result(test_suites):
     merged_result[name] += test_suite
 
   sorted_suites = []
-  for test_name, _, _, _ in config['tryjob']:
+  for test_name, _, _ in config['tryjob']:
     if test_name in merged_result:
       sorted_suites.append(merged_result.pop(test_name))
   return sorted_suites + list(merged_result.values())
