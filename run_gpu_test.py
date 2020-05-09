@@ -17,6 +17,15 @@ GL_TEST_CMD = 'gl_tests'
 VULKAN_TEST_CMD = 'vulkan_tests'
 AQUARIUM_TEST_CMD = 'aquarium'
 
+if is_win():
+  ANGLE_END2END_TEST_CMD += '.exe'
+  ANGLE_PERF_TEST_CMD += '.exe'
+  DAWN_END2END_TEST_CMD += '.exe'
+  DAWN_PERF_TEST_CMD += '.exe'
+  GL_TEST_CMD += '.exe'
+  VULKAN_TEST_CMD += '.exe'
+  AQUARIUM_TEST_CMD += '.exe'
+
 AQUARIUM_TEST_TIME = 30
 AQUARIUM_NUM_FISH = 30000
 
@@ -30,48 +39,23 @@ WEBGPU_EXPECTATIONS = path.join('third_party', 'blink', 'web_tests', 'WebGPUExpe
 TRYJOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'tryjob.json')
 
 def parse_arguments():
+  config = read_json(TRYJOB_CONFIG)
+  test_backend = {}
+  backend_choice = set()
+  for _, test_arg, _ in config['tryjob']:
+    test_backend.setdefault(test_arg[0], [])
+    test_backend[test_arg[0]].append(test_arg[1])
+    backend_choice.add(test_arg[1])
+
   parser = argparse.ArgumentParser(
       description='Run single test.\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('test_type',
-      choices=['webgl', 'webgl2', 'blink', 'dawn', 'angle', 'gpu', 'aquarium'],
-      help='The test to run.\n\n'\
-           'webgl    :  WebGL conformance tests\n'\
-           'webgl2   :  WebGL2 conformance tests\n'\
-           'blink    :  Blink tests\n'\
-           'dawn     :  Dawn tests\n'\
-           'angle    :  ANGLE tests\n'\
-           'gpu      :  GPU tests\n'\
-           'aquarium :  Aquarium tests\n\n')
+      choices=list(test_backend.keys()),
+      help='The test to run.\n\n')
   parser.add_argument('--backend', '-b', required=True,
-      choices=['validating', 'gl', 'vulkan', 'd3d9', 'd3d11', 'd3d12', 
-               'webgpu', 'webgpu_validation', 'end2end', 'end2end_wire', 'end2end_validation',
-               'perf', 'dawn_vulkan', 'dawn_d3d12'],
-      help='The backend of the test. The combination of test type and backend:\n'\
-           '\n[webgl/webgl2]\n'\
-           'validating : webgl_conformance_validating_tests\n'\
-           'gl         : webgl_conformance_gl_passthrough_tests\n'\
-           'vulkan     : webgl_conformance_vulkan_passthrough_tests\n'\
-           'd3d9       : webgl_conformance_d3d9_passthrough_tests\n'\
-           'd3d11      : webgl_conformance_tests\n'\
-           '\n[blink]\n'\
-           'webgpu            : webgpu_blink_web_tests\n'\
-           'webgpu_validation : webgpu_blink_web_tests_with_backend_validation\n'\
-           '\n[dawn]\n'\
-           'end2end            : dawn_end2end_tests\n'\
-           'end2end_wire       : dawn_end2end_wire_tests\n'\
-           'end2end_validation : dawn_end2end_validation_layers_tests\n'\
-           'perf               : dawn_perf_tests\n'\
-           '\n[angle]\n'\
-           'end2end    : angle_end2end_tests\n'\
-           'perf       : angle_perf_tests\n'\
-           '\n[gpu]\n'\
-           'gl         : gl_tests\n'\
-           'vulkan     : vulkan_tests\n'\
-           '\n[aquarium]\n'\
-           'dawn_vulkan : aquarium_dawn_vulkan_tests\n'\
-           'dawn_d3d12  : aquarium_dawn_d3d12_tests\n'\
-           'd3d12       : aquarium_d3d12_tests\n\n')
+      choices=list(backend_choice),
+      help='The backend of the test. Please refer to tryjob.json for detailed backends of each test.\n\n')
   parser.add_argument('--src-dir', '--dir', '-d', default='.',
       help='The source directory. Default is current directory.\n\n')
   parser.add_argument('--target', '-t', default='Default',
@@ -92,29 +76,16 @@ def parse_arguments():
       help='Go through the process but do not run tests actually.\n\n')
   args, extra_args = parser.parse_known_args()
 
-  if args.test_type.startswith('webgl'):
-    if not args.backend in ['validating', 'gl', 'vulkan', 'd3d9', 'd3d11']:
-      raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test_type == 'blink':
-    if not args.backend in ['webgpu', 'webgpu_validation']:
-      raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test_type == 'dawn':
-    if not args.backend in ['end2end', 'end2end_wire', 'end2end_validation', 'perf']:
-      raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test_type == 'angle':
-    if not args.backend in ['end2end', 'perf']:
-      raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test_type == 'gpu':
-    if not args.backend in ['gl', 'vulkan']:
-      raise Exception('Unsupported backend: ' + args.backend)
-  elif args.test_type == 'aquarium':
-    if not args.backend in ['dawn_vulkan', 'dawn_d3d12', 'd3d12']:
-      raise Exception('Unsupported backend: ' + args.backend)
+  if args.backend not in test_backend[args.test_type]:
+    raise Exception('The %s backend is not supported by %s test' % (args.backend, args.test_type))
 
   if args.filter:
-    if (args.test_type == 'aquarium' or args.test_type == 'blink'
-        or (args.test_type == 'angle' and args.backend == 'end2end')):
+    if args.test_type == 'aquarium' or args.test_type == 'blink':
       raise Exception('Do not support filter for %s/%s' % (args.test_type, args.backend))
+    if not args.filter.startswith('*') and not args.filter.startswith('?') and not args.filter.startswith('-'):
+      args.filter = '*' + args.filter
+    if not args.filter.endswith('*') and not args.filter.endswith('?'):
+      args.filter += '*'
 
   if args.shard > 1:
     if args.test_type == 'aquarium':
@@ -159,13 +130,7 @@ def generate_webgl_arguments(args):
   total_args.append('--extra-browser-args=' + ' '.join(browser_args))
 
   if args.filter:
-      filter = args.filter
-      if (not filter.startswith('*') and not filter.startswith('deqp')
-          and not filter.startswith('conformance')):
-        filter = '*' + filter
-      if not filter.endswith('*') and not filter.endswith('html'):
-        filter = filter + '*'
-      total_args.append('--test-filter=' + filter)
+    total_args.append('--test-filter=' + args.filter)
 
   return total_args
 
@@ -209,8 +174,9 @@ def generate_unittest_arguments(args):
     elif args.test_type == 'angle':
       total_args += ['--test-launcher-bot-mode',
                      '--cfi-diag=0',
-                     '--test-launcher-batch-limit=256',
-                     '--gtest_filter=-*Vulkan_SwiftShader*']
+                     '--test-launcher-batch-limit=256']
+      if not args.filter:
+        total_args += ['--gtest_filter=-*Vulkan_SwiftShader*']
   elif args.test_type == 'gpu':
     total_args += ['--use-gpu-in-tests',
                    '--test-launcher-bot-mode',
