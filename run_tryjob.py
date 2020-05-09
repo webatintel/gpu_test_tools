@@ -94,6 +94,8 @@ def parse_arguments():
         continue
     print(test_name)
     args.tryjob.append(test_arg)
+  if not args.tryjob:
+    raise Exception('No available test for specified condition')
 
   args.tryjob_shards = config['tryjob_shards']
   args.receiver_admin = config['email']['receiver']['admin']
