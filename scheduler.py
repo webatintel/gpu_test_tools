@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import datetime
 import os
@@ -8,10 +8,8 @@ import sys
 import time
 from os import path
 
-TEST_TIME = '20:00'
-
-FILE_DIR= path.dirname(path.abspath(__file__))
-BIN_DIR= path.join(FILE_DIR, 'bin')
+FILE_DIR    = path.dirname(path.abspath(__file__))
+BIN_DIR     = path.join(FILE_DIR, 'bin')
 PROJECT_DIR = path.abspath(path.join(FILE_DIR, '..', '..', 'project'))
 
 def execute_command(cmd, dir=None):
@@ -24,7 +22,6 @@ def run_try_job():
   execute_command(['git', 'checkout', '.'], FILE_DIR)
   execute_command(['git', 'fetch', 'origin'], FILE_DIR)
   execute_command(['git', 'rebase', 'origin/master'], FILE_DIR)
-
   execute_command([path.join(BIN_DIR, 'run_tryjob'),
                    '--job', 'regular', 'aquarium',
                    '--chrome-dir', path.join(PROJECT_DIR, 'chromium'),
@@ -37,9 +34,7 @@ def run_try_job():
 def main():
   scheduler = sched.scheduler(time.time, time.sleep)
   today = datetime.date.today()
-  test_time = datetime.datetime(
-      today.year, today.month, today.day,
-      int(TEST_TIME.split(':')[0]), int(TEST_TIME.split(':')[1]))
+  test_time = datetime.datetime(today.year, today.month, today.day, 20, 0)
   while True:
     print("\nNext test time: " + test_time.strftime('%Y/%m/%d %H:%M'))
     scheduler.enterabs(time.mktime(test_time.timetuple()), 1, run_try_job, ())

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import datetime
 import email.utils
 import os
@@ -19,9 +17,7 @@ from os import path
 from subprocess import CalledProcessError
 
 PYTHON_CMD = 'vpython'
-
-FILE_DIR = path.dirname(path.abspath(__file__))
-TRYJOB_CONFIG = path.join(FILE_DIR, '..', 'tryjob.json')
+TRYJOB_CONFIG = path.join(path.dirname(path.dirname(path.abspath(__file__))), 'tryjob.json')
 
 PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z\-\(\)]+ .+$'
 PATTERN_CHROME_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
