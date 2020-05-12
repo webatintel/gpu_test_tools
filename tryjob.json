@@ -13,6 +13,7 @@
     ["dawn_end2end_tests",                             ["dawn", "end2end"],            ["win", "linux", "regular", "dawn",            "unittest"]],
     ["dawn_end2end_wire_tests",                        ["dawn", "end2end_wire"],       ["win", "linux",            "dawn",            "unittest"]],
     ["dawn_end2end_validation_layers_tests",           ["dawn", "end2end_validation"], ["win", "linux",            "dawn",            "unittest"]],
+    ["dawn_end2end_skip_validation_tests",             ["dawn", "end2end_skip"],       ["win", "linux",            "dawn",            "unittest"]],
     ["dawn_perf_tests",                                ["dawn", "perf"],               ["win", "linux", "regular", "dawn",            "performance"]],
     ["webgpu_blink_web_tests",                         ["blink", "webgpu"],            ["win", "linux", "regular", "webgpu", "blink", "conformance"]],
     ["webgpu_blink_web_tests_with_backend_validation", ["blink", "webgpu_validation"], ["win", "linux",            "webgpu", "blink", "conformance"]],
@@ -26,18 +27,6 @@
     "webgl" : 2,
     "webgl2": 20,
     "angle_end2end" : 4
-  },
-  "tryjob_args": {
-    "webgl_validating":
-      ["--force_high_performance_gpu", "--use-cmd-decoder=validating"],
-    "webgl_d3d11":
-      ["--force_high_performance_gpu"],
-    "webgl_gl":
-      ["--force_high_performance_gpu", "--use-cmd-decoder=passthrough", "--use-angle=gl", "--use-gl=angle"],
-    "webgl_d3d9":
-      ["--force_high_performance_gpu", "--use-cmd-decoder=passthrough", "--use-angle=d3d9"],
-    "webgl_vulkan":
-      ["--force_high_performance_gpu", "--use-cmd-decoder=passthrough", "--use-angle=vulkan"]
   },
   "email": {
     "smtp_server": "10.239.47.103",
@@ -57,14 +46,18 @@
       ]
     }
   },
-  "aquarium_average_fps": {
-    "win": {
-      "d3d12": 32,
-      "dawn_d3d12": 38,
-      "dawn_vulkan": 39
-    },
-    "linux": {
-      "dawn_vulkan": 33
+  "aquarium":{
+    "test_time": 30,
+    "num_fish": 30000,
+    "average_fps": {
+      "win": {
+        "d3d12": 32,
+        "dawn_d3d12": 38,
+        "dawn_vulkan": 39
+      },
+      "linux": {
+        "dawn_vulkan": 33
+      }
     }
   }
 }

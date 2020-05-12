@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import os
@@ -19,8 +19,6 @@ PATTERN_GTEST_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./<>]+), .+ \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_OVER = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
-
-TRYJOB_CONFIG = path.join(path.dirname(path.abspath(__file__)), 'tryjob.json')
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -51,7 +49,8 @@ class TestResult(object):
   def __init__(self, name):
     self.name = name
     self.suite_name = None
-    self.result = None # True: Passed; False: Failed; None: Skipped
+    # True->Pass; False->Fail; None->Skip
+    self.result = None
     self.is_expected = False
     self.is_flaky = False
     self.is_timeout = False
@@ -130,7 +129,6 @@ def parse_json_result(key, value):
     test_result.duration = 0
     for item in value['times']:
       test_result.duration += item
-
   return test_result
 
 

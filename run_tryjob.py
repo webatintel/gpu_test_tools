@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import sys
@@ -8,18 +8,17 @@ from util.file_util import *
 from util.system_util import *
 from os import path
 
-FILE_DIR = path.dirname(path.abspath(__file__))
-BIN_DIR= path.join(FILE_DIR, 'bin')
-TRYJOB_DIR = path.join(FILE_DIR, 'tryjob')
-TRYJOB_CONFIG = path.join(FILE_DIR, 'tryjob.json')
+BIN_DIR    = path.join(path.dirname(path.abspath(__file__)), 'bin')
+TRYJOB_DIR = path.join(path.dirname(path.abspath(__file__)), 'tryjob')
 
-TRYJOB_REPORT = 'tryjob_report.txt'
+TRYJOB_REPORT   = 'tryjob_report.txt'
 AQUARIUM_REPORT = 'aquarium_report.txt'
 
 PATTERN_AQUARIUM_TEST = r'^aquarium_(\w+)\s+(\d+)$'
-PATTERN_FLAKY_PASS = r'^.*\[Flaky Pass:(\d+)\].*$'
-PATTERN_NEW_PASS = r'^.*\[New Pass:(\d+)\].*$'
-PATTERN_NEW_FAIL = r'^.*\[New Fail:(\d+)\].*$'
+PATTERN_FLAKY_PASS    = r'^.*\[Flaky Pass:(\d+)\].*$'
+PATTERN_NEW_PASS      = r'^.*\[New Pass:(\d+)\].*$'
+PATTERN_NEW_FAIL      = r'^.*\[New Fail:(\d+)\].*$'
+
 
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
@@ -61,6 +60,20 @@ def parse_arguments():
       help='Go through the process but do not run tests actually.\n\n')
   args = parser.parse_args()
 
+  args.tryjob_shards = config['tryjob_shards']
+  args.receiver_admin = config['email']['receiver']['admin']
+  args.receiver_tryjob = config['email']['receiver']['tryjob']
+  args.receiver_aquarium = config['email']['receiver']['aquarium']
+  args.aquarium_average_fps = config['aquarium']['average_fps'][get_osname()]
+
+  if args.dry_run:
+    if not args.result_dir:
+      args.result_dir = '.'
+    if not args.chrome_dir:
+      args.chrome_dir = '.'
+    if not args.aquarium_dir:
+      args.aquarium_dir = '.'
+
   print('\nRun Tests:')
   args.run_tests = []
   for test_name, test_arg, job_type in config['tryjob']:
@@ -69,9 +82,7 @@ def parse_arguments():
     if args.test_filter:
       matched = False
       for keyword in args.test_filter:
-        if keyword in test_name:
-          matched = True
-          break
+        matched |= keyword in test_name
       if not matched:
         continue
     print(test_name)
@@ -82,28 +93,13 @@ def parse_arguments():
   for test_type, _ in args.run_tests:
     if test_type == 'aquarium':
       if not args.aquarium_dir:
-        if args.dry_run:
-          args.aquarium_dir = '.'
-        else:
-          raise Exception('Please specify --aquarium-dir')
+        raise Exception('Please specify --aquarium-dir')
     elif test_type == 'angle' and args.angle_dir:
       pass
     elif test_type == 'dawn' and args.dawn_dir:
       pass
     elif not args.chrome_dir:
-      if args.dry_run:
-        args.chrome_dir = '.'
-      else:
-        raise Exception('Please specify --chrome-dir')
-
-  if not args.result_dir and args.dry_run:
-    args.result_dir = '.'
-
-  args.tryjob_shards = config['tryjob_shards']
-  args.receiver_admin = config['email']['receiver']['admin']
-  args.receiver_tryjob = config['email']['receiver']['tryjob']
-  args.receiver_aquarium = config['email']['receiver']['aquarium']
-  args.aquarium_average_fps = config['aquarium_average_fps']
+      raise Exception('Please specify --chrome-dir')
 
   if args.result_dir:
     args.result_dir = path.abspath(args.result_dir)
@@ -159,7 +155,7 @@ def update_aquarium_report(args, report):
     match = re_match(PATTERN_AQUARIUM_TEST, lines[i])
     if match:
       key, value = match.group(1), int(match.group(2))
-      reference_value = args.aquarium_average_fps[get_osname()][key]
+      reference_value = args.aquarium_average_fps[key]
       bias = (value - reference_value) * 100 // reference_value
       lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
       if abs(bias) > abs(max_bias):
@@ -173,44 +169,42 @@ def update_aquarium_report(args, report):
   return title, '\n'.join(lines)
 
 
-def build_project(args, project, source_dir):
-  build_cmd = [path.join(BIN_DIR, 'build_project'), project, '--target', args.target, '--dir', source_dir]
-  if args.update:
-    build_cmd.append('--update')
-  try:
-    execute_command_passthrough(build_cmd)
-  except CalledProcessError:
-    execute_command(build_cmd, return_log=True)
-
-
-def notify_command_error(args, receiver, error):
-  if not args.email:
-    return
-  send_email(receiver,
-             '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
-             '%s\n\n%s' % (' '.join(error.cmd), error.output))
-
-
 def main():
   args = parse_arguments()
+
+  def build_project(project, source_dir):
+    build_cmd = [path.join(BIN_DIR, 'build_project'), project,
+                 '--target', args.target, '--dir', source_dir]
+    if args.update:
+      build_cmd += ['--update']
+    try:
+      execute_command_passthrough(build_cmd)
+    except CalledProcessError:
+      execute_command(build_cmd, return_log=True)
+
+  def notify_command_error(receiver, error):
+    if args.email:
+      send_email(receiver,
+                '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
+                '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
   # Build project
   aquarium_build_failed = False
   if args.build or args.update:
     try:
       if args.chrome_dir:
-        build_project(args, 'chrome', args.chrome_dir)
+        build_project('chrome', args.chrome_dir)
       if args.dawn_dir:
-        build_project(args, 'dawn', args.dawn_dir)
+        build_project('dawn', args.dawn_dir)
       if args.angle_dir:
-        build_project(args, 'angle', args.angle_dir)
+        build_project('angle', args.angle_dir)
     except CalledProcessError as e:
       notify_command_error(args, args.receiver_admin, e)
       raise e
 
     try:
       if args.aquarium_dir:
-        build_project(args, 'aquarium', args.aquarium_dir)
+        build_project('aquarium', args.aquarium_dir)
     except CalledProcessError as e:
       notify_command_error(args, args.receiver_aquarium, e)
       aquarium_build_failed = True
