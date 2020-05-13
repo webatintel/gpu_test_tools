@@ -115,7 +115,7 @@ def generate_webgl_arguments(args):
 
   browser_args = ['--disable-backgrounding-occluded-windows',
                   '--force_high_performance_gpu']
-  if args.backend == 'validating':
+  if args.backend == 'valid':
     browser_args += ['--use-cmd-decoder=validating']
   elif args.backend in ['d3d9', 'gl', 'vulkan']:
     browser_args += ['--use-cmd-decoder=passthrough',
@@ -140,7 +140,7 @@ def generate_blink_arguments(args):
     driver_flags += ['--disable-gpu-sandbox']
   elif is_linux():
     driver_flags += ['--use-vulkan=native']
-  if args.backend == 'webgpu_validation':
+  if args.backend == 'webgpu_valid':
     driver_flags += ['--enable-dawn-backend-validation']
   return total_args + ['--additional-driver-flag=' + flag for flag in driver_flags]
 
@@ -166,7 +166,7 @@ def generate_unittest_arguments(args):
         total_args += ['--no-xvfb']
     elif args.backend == 'end2end_wire':
       total_args += ['--use-wire']
-    elif args.backend == 'end2end_validation':
+    elif args.backend == 'end2end_valid':
       total_args += ['--enable-backend-validation']
     elif args.backend == 'end2end_skip':
       total_args += ['--skip-validation']
