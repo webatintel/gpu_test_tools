@@ -20,12 +20,11 @@ PATTERN_FLAKY_PASS    = r'^.*\[Flaky Pass:(\d+)\].*$'
 PATTERN_NEW_PASS      = r'^.*\[New Pass:(\d+)\].*$'
 PATTERN_NEW_FAIL      = r'^.*\[New Fail:(\d+)\].*$'
 
-
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
   job_set = set()
-  for _, _, job_type in config['tryjob']:
-    if get_osname() in job_type:
+  for _, _, platform, job_type in config['tryjob']:
+    if get_osname() in platform:
       job_set |= set(job_type)
 
   parser = argparse.ArgumentParser(
@@ -33,7 +32,7 @@ def parse_arguments():
                   'Once the tests are finished, the statistics are output to the screen and the file "tryjob_report.txt".\n'\
                   'The tryjob configuration is in "tryjob.json".\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=sorted(list(job_set)), default=[get_osname()],
+  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=sorted(list(job_set)),
       help='You can select one or more jobs from the candidates. By default, all available jobs will be run.\n\n')
   parser.add_argument('--test-filter', '--filter', '-f', nargs='+',
       help='You can specify one or more keywords (the logic is OR), the test that contains the keyword will be run.\n\n')
@@ -61,7 +60,7 @@ def parse_arguments():
       help='Go through the process but do not run tests actually.\n\n')
   args = parser.parse_args()
 
-  args.tryjob_shards = config['tryjob_shards']
+  args.test_shards = config['test_shards']
   args.receiver_admin    = config['email']['receiver']['admin']
   args.receiver_tryjob   = config['email']['receiver']['tryjob']
   args.receiver_aquarium = config['email']['receiver']['aquarium']
@@ -77,8 +76,10 @@ def parse_arguments():
 
   print('\nRun Tests:')
   args.run_tests = []
-  for test_name, test_arg, job_type in config['tryjob']:
-    if get_osname() not in job_type or not set(args.job_type) & set(job_type):
+  for test_name, test_arg, platform, job_type in config['tryjob']:
+    if get_osname() not in platform:
+      continue
+    if args.job_type and not set(args.job_type) & set(job_type):
       continue
     if args.test_filter:
       matched = False
@@ -227,9 +228,9 @@ def main():
     else:
       cmd += ['--dir', args.chrome_dir]
 
-    for key in ['%s_%s' % (test, backend), test]:
-      if key in args.tryjob_shards:
-        cmd += ['--shard', str(args.tryjob_shards[key])]
+    for key in [test + '_' + backend, test]:
+      if key in args.test_shards:
+        cmd += ['--shard', str(args.test_shards[key])]
         break
     if args.dry_run:
       cmd += ['--dry-run']

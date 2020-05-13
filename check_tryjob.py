@@ -178,13 +178,13 @@ def main():
       elif name in linux_tests:
         print_test(linux_tests[name])
 
-  for test_name, _, job_type in config['tryjob']:
+  for test_name, _, platform, _ in config['tryjob']:
     pos = test_name.find('(')
     if pos > 0:
       test_name = test_name[0:pos]
-    if 'win' in job_type and test_name in win_tests:
+    if 'win' in platform and test_name in win_tests:
       win_tests.pop(test_name)
-    if 'linux' in job_type and test_name in linux_tests:
+    if 'linux' in platform and test_name in linux_tests:
       linux_tests.pop(test_name)
 
   if win_tests:
