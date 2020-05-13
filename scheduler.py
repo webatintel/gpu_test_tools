@@ -23,7 +23,7 @@ def run_try_job():
   execute_command(['git', 'fetch', 'origin'], FILE_DIR)
   execute_command(['git', 'rebase', 'origin/master'], FILE_DIR)
   execute_command([path.join(BIN_DIR, 'run_tryjob'),
-                   '--job', 'regular', 'aquarium',
+                   '--job', 'chrome', 'aquarium',
                    '--chrome-dir', path.join(PROJECT_DIR, 'chromium'),
                    '--aquarium-dir', path.join(PROJECT_DIR, 'aquarium'),
                    '--update', '--email'])
