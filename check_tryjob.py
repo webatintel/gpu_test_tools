@@ -191,7 +191,6 @@ def main():
     handle_error('Missing tryjob on Windows', ', '.join(win_tests.keys()))
   if linux_tests:
     handle_error('Missing tryjob on Linux', ', '.join(linux_tests.keys()))
-  return 0
 
 
 if __name__ == '__main__':
