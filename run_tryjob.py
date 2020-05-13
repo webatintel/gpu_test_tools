@@ -14,7 +14,7 @@ TRYJOB_DIR = path.join(path.dirname(path.abspath(__file__)), 'tryjob')
 TRYJOB_REPORT   = 'tryjob_report.txt'
 AQUARIUM_REPORT = 'aquarium_report.txt'
 
-PATTERN_AQUARIUM_TEST = r'^aquarium_(\w+)\s+(\d+)$'
+PATTERN_AQUARIUM_TEST = r'^aquarium_(\w+)_tests\s+(\d+)$'
 
 PATTERN_FLAKY_PASS    = r'^.*\[Flaky Pass:(\d+)\].*$'
 PATTERN_NEW_PASS      = r'^.*\[New Pass:(\d+)\].*$'
@@ -130,7 +130,8 @@ def update_tryjob_report(args, report):
       flaky_pass += int(match.group(1))
     match = re_match(PATTERN_NEW_PASS, line)
     if match:
-      new_pass += int(match.group(1))
+      if not line.startswith('webgpu_blink'):
+        new_pass += int(match.group(1))
     match = re_match(PATTERN_NEW_FAIL, line)
     if match:
       new_fail += int(match.group(1))
@@ -240,10 +241,10 @@ def main():
 
   # Parse result
   try:
-    tryjob_report = execute_command([path.join(BIN_DIR, 'parse_result')],
-                                    return_log=True, dir=args.result_dir)
     aquarium_report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
-                                      return_log=True, dir=args.result_dir)
+                                      print_log=False, return_log=True, dir=args.result_dir)
+    tryjob_report = execute_command([path.join(BIN_DIR, 'parse_result')],
+                                    print_log=False, return_log=True, dir=args.result_dir)
   except CalledProcessError as e:
     notify_command_error(args, args.receiver_admin, e)
 
@@ -257,6 +258,8 @@ def main():
   if aquarium_report:
     title, aquarium_report = update_aquarium_report(args, aquarium_report)
     aquarium_report = '%s\n%s' % (header, aquarium_report)
+    print('\n--------------------------------------------------\n')
+    print('%s\n\n%s' % (title, aquarium_report))
     write_file(path.join(args.result_dir, AQUARIUM_REPORT), aquarium_report)
     if args.email:
       send_email(args.receiver_aquarium, title, aquarium_report)
@@ -268,15 +271,18 @@ def main():
       if revision:
         header += 'Chrome: %s\n' % revision
     tryjob_report = '%s\n%s' % (header, tryjob_report)
+    print('\n--------------------------------------------------\n')
+    print('%s\n\n%s' % (title, tryjob_report))
     write_file(path.join(args.result_dir, TRYJOB_REPORT), tryjob_report)
     if args.email:
       send_email(args.receiver_tryjob, title, tryjob_report)
 
-  print('\nTest result     : ' + args.result_dir)
-  if path.exists(path.join(args.result_dir, TRYJOB_REPORT)):
-    print('Tryjob report   : ' + path.join(args.result_dir, TRYJOB_REPORT))
+  print('\n--------------------------------------------------\n')
+  print('Test result     : ' + args.result_dir)
   if path.exists(path.join(args.result_dir, AQUARIUM_REPORT)):
     print('Aquarium report : ' + path.join(args.result_dir, AQUARIUM_REPORT))
+  if path.exists(path.join(args.result_dir, TRYJOB_REPORT)):
+    print('Tryjob report   : ' + path.join(args.result_dir, TRYJOB_REPORT))
 
 
 if __name__ == '__main__':
