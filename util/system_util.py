@@ -17,7 +17,7 @@ def is_win():
   return sys.platform == 'win32'
 
 def is_linux():
-  return sys.platform.startswith('linux')
+  return sys.platform == 'linux'
 
 def is_mac():
   return sys.platform == 'darwin'
