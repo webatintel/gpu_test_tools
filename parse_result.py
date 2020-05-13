@@ -8,31 +8,39 @@ from util.base_util import *
 from util.file_util import *
 from os import path
 
-PATTERN_UNITTEST_RESULT_FAIL = r'^\d+ test(s?) failed:$'
-PATTERN_UNITTEST_RESULT_CRASH = r'^\d+ test(s?) crashed:$'
+PATTERN_UNITTEST_RESULT_FAIL    = r'^\d+ test(s?) failed:$'
+PATTERN_UNITTEST_RESULT_CRASH   = r'^\d+ test(s?) crashed:$'
 PATTERN_UNITTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
-PATTERN_UNITTEST_RESULT_SKIP = r'^\d+ test(s?) not run:$'
-PATTERN_UNITTEST_CASE = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
+PATTERN_UNITTEST_RESULT_SKIP    = r'^\d+ test(s?) not run:$'
+
+PATTERN_UNITTEST_CASE  = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_UNITTEST_ERROR = r'^(.+) \(.+:\d+\)$'
-PATTERN_GTEST_RESULT_OK = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+
+PATTERN_GTEST_RESULT_OK   = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./<>]+), .+ \(\d+ ms\)$'
+
 PATTERN_GTEST_RESULT_OVER = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
+
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 def parse_arguments():
+  config = read_json(TRYJOB_CONFIG)
+  test_set = set()
+  for _, test_arg, _ in config['tryjob']:
+    test_set.add(test_arg[0])
+
   parser = argparse.ArgumentParser(
       description='Parse test result and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--test-type', '--type', '-t', nargs='+',
-      choices=['webgl', 'blink', 'dawn', 'angle', 'gpu', 'aquarium'],
-      default=['webgl', 'blink', 'dawn', 'angle', 'gpu'],
+  parser.add_argument('--result-type', '--type', '-t', nargs='+',
+      choices=sorted(list(test_set)), default=sorted(list(test_set - set(['aquarium']))),
       help='What type of test result to parse, you can specify multiple. Default is all except aquarium.\n\n')
   parser.add_argument('--result-dir', '--dir', '-d', default='.',
       help='The directory where the result files are located. Default is current directory.\n\n')
   args = parser.parse_args()
 
-  if 'aquarium' in args.test_type and len(args.test_type) > 1:
+  if 'aquarium' in args.result_type and len(args.result_type) > 1:
     raise Exception('Can not merge aquarium result with others')
 
   args.result_dir = path.abspath(args.result_dir)
@@ -235,7 +243,6 @@ def parse_aquarium_result_file(result_file):
 
 
 def merge_shard_result(test_suites):
-  config = read_json(TRYJOB_CONFIG)
   merged_result = {}
   for test_suite in test_suites:
     name = test_suite.name
@@ -243,17 +250,12 @@ def merge_shard_result(test_suites):
       name, ext = path.splitext(name)
       if not ext:
         break
-    test_type, backend = name.split('_', 1)
-    for test_name, test_arg, _ in config['tryjob']:
-      if test_arg[0] == test_type and test_arg[1] == backend:
-        name = test_name
-        break
 
     merged_result.setdefault(name, TestSuite(name))
     merged_result[name] += test_suite
 
   sorted_suites = []
-  for test_name, _, _ in config['tryjob']:
+  for test_name, _, _ in read_json(TRYJOB_CONFIG)['tryjob']:
     if test_name in merged_result:
       sorted_suites.append(merged_result.pop(test_name))
   return sorted_suites + list(merged_result.values())
@@ -306,17 +308,38 @@ def generate_test_report(test_suites):
 
 def main():
   args = parse_arguments()
+  config = read_json(TRYJOB_CONFIG)
 
-  if args.test_type == ['aquarium']:
+  def find_result_file(test):
+    result_names = []
+    for test_name, test_arg, _ in config['tryjob']:
+      if test == test_arg[0]:
+        pos = test_name.find('(')
+        if pos > 0:
+          test_name = test_name[0:pos]
+        result_names.append(test_name)
+
+    for file_path in list_file(args.result_dir):
+      file_name = path.basename(file_path)
+      if test in ['webgl', 'webgl2', 'blink']:
+        result_ext = 'json'
+      elif test in ['dawn', 'angle', 'gpu', 'aquarium']:
+        result_ext = 'log'
+      if not file_name.endswith(result_ext):
+        continue
+      for name in result_names:
+        if file_name.startswith(name):
+          yield file_path
+          break
+
+  if args.result_type == ['aquarium']:
     perf_results = []
     max_name_len = 0
-    for file_name in list_file(args.result_dir):
-      file_name = path.basename(file_name)
-      if file_name.startswith('aquarium') and file_name.endswith('.log'):
-        result = parse_aquarium_result_file(file_name)
-        if result and result.average_fps > 0:
-          perf_results.append(result)
-          max_name_len = max(max_name_len, len(result.name))
+    for result_file in find_result_file('aquarium'):
+      result = parse_aquarium_result_file(result_file)
+      if result and result.average_fps > 0:
+        perf_results.append(result)
+        max_name_len = max(max_name_len, len(result.name))
 
     if perf_results:
       report = 'Average FPS:\n'
@@ -326,18 +349,14 @@ def main():
       print(report, end='')
   else:
     test_suites = []
-    for test_type in args.test_type:
-      for file_path in list_file(args.result_dir):
-        file_name = path.basename(file_path)
-        test_suite = None
-        if test_type in ['webgl', 'blink']:
-          if file_name.startswith(test_type) and file_name.endswith('.json'):
-            test_suite = parse_json_result_file(file_path)
-        elif test_type in ['dawn', 'angle', 'gpu']:
-          if file_name.startswith(test_type) and file_name.endswith('.log'):
-            test_suite = parse_unittest_result_file(file_path)
-            if not test_suite:
-              test_suite = parse_gtest_result_file(file_path)
+    for test in args.result_type:
+      for result_file in find_result_file(test):
+        if test in ['webgl', 'webgl2', 'blink']:
+          test_suite = parse_json_result_file(result_file)
+        elif test in ['dawn', 'angle', 'gpu']:
+          test_suite = parse_unittest_result_file(result_file)
+          if not test_suite:
+            test_suite = parse_gtest_result_file(result_file)
         if test_suite:
           test_suites.append(test_suite)
 
@@ -346,8 +365,6 @@ def main():
       report = generate_test_report(test_suites)
       if report:
         print(report, end='')
-
-  return 0
 
 
 if __name__ == '__main__':

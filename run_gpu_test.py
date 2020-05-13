@@ -27,47 +27,45 @@ WEBGPU_EXPECTATION = path.join('third_party', 'blink', 'web_tests', 'WebGPUExpec
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
   test_backend = {}
-  backend_choice = set()
+  backend_set = set()
   for _, test_arg, _ in config['tryjob']:
     test_backend.setdefault(test_arg[0], [])
     test_backend[test_arg[0]].append(test_arg[1])
-    backend_choice.add(test_arg[1])
+    backend_set.add(test_arg[1])
 
   parser = argparse.ArgumentParser(
       description='Run single test.\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('test_type',
-      choices=list(test_backend.keys()),
+  parser.add_argument('test', choices=sorted(list(test_backend.keys())),
       help='The test to run.\n\n')
-  parser.add_argument('--backend', '-b', required=True,
-      choices=list(backend_choice),
+  parser.add_argument('backend', choices=sorted(list(backend_set)),
       help='The backend of the test. Please refer to tryjob.json for detailed backends of each test.\n\n')
   parser.add_argument('--src-dir', '--dir', '-d', default='.',
       help='The source directory. Default is current directory.\n\n')
   parser.add_argument('--target', '-t', default='Default',
       help='The target build directory under "out/". Default is \'Default\'.\n\n')
-  parser.add_argument('--log', '-l', action='store_true',
-      help='Print full test logs when test is running.\n\n')
-  parser.add_argument('--filter', '-f', nargs='+',
+  parser.add_argument('--filter', '-f', nargs='+', default=[],
       help='The keyword to match the test cases. You can specify multiple.\n\n')
-  parser.add_argument('--repeat', '-r', default=1, type=int,
-      help='The number of times to repeat running this test.\n'\
-           'If the number of shards is more than 1, the running sequence will be shard0 * N times, shard1 * N times ...\n\n')
   parser.add_argument('--shard', '-s', default=1, type=int,
       help='Total number of shards being used for this test. Default is 1.\n\n')
   parser.add_argument('--index', '-i', default=-1, type=int,
       help='Shard index of this test.\n'\
            'If the number of shards is more than 1 and this argument is not specified, all shards will be ran in sequence.\n\n')
+  parser.add_argument('--repeat', '-r', default=1, type=int,
+      help='The number of times to repeat running this test.\n'\
+           'If the number of shards is more than 1, the running sequence will be shard0 * N times, shard1 * N times ...\n\n')
+  parser.add_argument('--print-log', '-p', action='store_true',
+      help='Print full test logs when test is running.\n\n')
   parser.add_argument('--dry-run', action='store_true',
       help='Go through the process but do not run tests actually.\n\n')
   args, extra_args = parser.parse_known_args()
 
-  if args.backend not in test_backend[args.test_type]:
-    raise Exception('The %s backend is not supported by %s test' % (args.backend, args.test_type))
+  if args.backend not in test_backend[args.test]:
+    raise Exception('The %s backend is not supported by %s test' % (args.backend, args.test))
 
   if args.filter:
-    if args.test_type in ['aquarium', 'blink']:
-      raise Exception('Do not support filter for ' + args.test_type)
+    if args.test in ['blink', 'aquarium']:
+      raise Exception('Do not support filter for ' + args.test)
     for i in range(0, len(args.filter)):
       if not args.filter[i].startswith('*'):
         args.filter[i] = '*' + args.filter[i]
@@ -75,19 +73,28 @@ def parse_arguments():
         args.filter[i] += '*'
 
   if args.shard > 1:
-    if args.test_type == 'aquarium':
-      raise Exception('Do not support shard for ' + args.test_type)
+    if args.test == 'aquarium':
+      raise Exception('Do not support shard for ' + args.test)
 
   if args.shard > 1 and args.filter:
     raise Exception('Can not specify shard and filter together')
 
-  if args.repeat < 1:
-    raise Exception('Invalid repeat number: %d' % args.repeat)
-  
   if args.shard < 1:
     raise Exception('Invalid shard number: %d' % args.shard)
   elif args.index >= args.shard:
     raise Exception('Invalid index number: %d' % args.index)
+
+  if args.repeat < 1:
+    raise Exception('Invalid repeat number: %d' % args.repeat)
+
+  for test_name, test_arg, _ in config['tryjob']:
+    if args.test == test_arg[0] and args.backend == test_arg[1]:
+      pos = test_name.find('(')
+      if pos > 0:
+        test_name = test_name[0:pos]
+      args.log_file = test_name + '.log'
+      args.result_file = test_name + '.json'
+      break
 
   args.src_dir = path.abspath(args.src_dir)
   if path.basename(args.src_dir) == 'chromium' and path.exists(path.join(args.src_dir, 'src')):
@@ -97,10 +104,10 @@ def parse_arguments():
 
 
 def generate_webgl_arguments(args):
-  total_args = ['--show-stdout', '--passthrough', '-v', '--browser=exact', 
+  total_args = ['webgl_conformance','--show-stdout', '--passthrough', '-v', '--browser=exact',
                 '--browser-executable=' + path.join(args.build_dir, 'chrome') + ('.exe' if is_win() else ''),
                 '--retry-only-retry-on-failure-tests']
-  if args.test_type == 'webgl2':
+  if args.test == 'webgl2':
     total_args += ['--webgl-conformance-version=2.0.1',
                    '--read-abbreviated-json-results-from=' + path.join(args.src_dir, WEBGL2_ABBREVIATED_RESULT)]
   if args.filter:
@@ -120,10 +127,11 @@ def generate_webgl_arguments(args):
 
 def generate_blink_arguments(args):
   total_args = ['--seed', '4', '--jobs=1', '--driver-logging', '--target=' + args.target,
-                '--no-show-results', '--clobber-old-results', '--no-retry-failures',
-                '--ignore-default-expectations',
-                '--additional-expectations=' + path.join(args.src_dir, WEBGPU_EXPECTATION),
-                '--isolated-script-test-filter=wpt_internal/webgpu/*']
+                '--no-show-results', '--clobber-old-results', '--no-retry-failures']
+  if args.backend == 'webgpu':
+    total_args += ['--isolated-script-test-filter=wpt_internal/webgpu/*',
+                   '--ignore-default-expectations',
+                   '--additional-expectations=' + path.join(args.src_dir, WEBGPU_EXPECTATION)]
   if is_linux():
     total_args += ['--no-xvfb']
 
@@ -143,14 +151,14 @@ def generate_unittest_arguments(args):
                   '--test-launcher-print-test-stdio=always',
                   '--test-launcher-jobs=1',
                   '--test-launcher-retry-limit=0']
-    if args.test_type == 'angle':
+    if args.test == 'angle':
       total_args += ['--one-frame-only']
-    elif args.test_type == 'dawn':
+    elif args.test == 'dawn':
       total_args += ['--override-steps=1']
   elif args.backend.startswith('end2end'):
     total_args = ['--use-gpu-in-tests',
                   '--test-launcher-retry-limit=0']
-    if args.test_type == 'angle':
+    if args.test == 'angle':
       total_args += ['--test-launcher-batch-limit=256',
                      '--test-launcher-bot-mode',
                      '--cfi-diag=0']
@@ -162,13 +170,13 @@ def generate_unittest_arguments(args):
       total_args += ['--enable-backend-validation']
     elif args.backend == 'end2end_skip':
       total_args += ['--skip-validation']
-  elif args.test_type == 'gpu':
+  elif args.test == 'gpu':
     total_args = ['--use-gpu-in-tests',
                   '--test-launcher-bot-mode',
                   '--cfi-diag=0']
 
-  if not args.filter and args.test_type == 'angle' and args.backend == 'end2end':
-    args.filter = ['-*Vulkan_SwiftShader*']
+  if args.test == 'angle' and args.backend == 'end2end':
+    args.filter += ['-*Vulkan_SwiftShader*']
   if args.filter:
     total_args += ['--gtest_filter=' + ':'.join(args.filter)]
   return total_args
@@ -205,70 +213,68 @@ def execute_shard(cmd, args):
     log_file = log_name + shard_ext + repeat_ext + log_ext
     print(log_name + shard_ext + repeat_ext)
 
-    result_cmd = []
-    if args.test_type in ['webgl', 'webgl2', 'blink']:
-      result_cmd = ['--write-full-results-to=' + result_name + shard_ext + repeat_ext + result_ext]
+    result_arg = []
+    if args.test in ['webgl', 'webgl2', 'blink']:
+      result_arg = ['--write-full-results-to=' + result_name + shard_ext + repeat_ext + result_ext]
     if args.dry_run:
-      print(' '.join(cmd + result_cmd))
+      print(' '.join(['"'+arg+'"' if arg.startswith('--extra-browser-args') else arg for arg in (cmd + result_arg)]))
     else:
-      execute_command(cmd + result_cmd, print_log=args.log, return_log=False, save_log=log_file, env=env)
+      try:
+        execute_command(cmd + result_arg, print_log=args.print_log, return_log=False, save_log=log_file, env=env)
+      except CalledProcessError:
+        pass
 
 
 def main():
   args, extra_args = parse_arguments()
 
-  if args.test_type in ['webgl', 'webgl2']:
-    cmd = [PYTHON_CMD, path.join(args.src_dir, WEBGL_TEST_SCRIPT), 'webgl_conformance']
+  if args.test in ['webgl', 'webgl2']:
+    cmd = [PYTHON_CMD, path.join(args.src_dir, WEBGL_TEST_SCRIPT)]
     cmd += generate_webgl_arguments(args)
-    total_shards = '--total-shards'
-    shard_index = '--shard-index'
-  elif args.test_type == 'blink':
+  elif args.test == 'blink':
     cmd = [PYTHON_CMD, path.join(args.src_dir, BLINK_TEST_SCRIPT)]
     cmd += generate_blink_arguments(args)
-    total_shards = '--total-shards'
-    shard_index = '--shard-index'
-  elif args.test_type == 'aquarium':
+  elif args.test == 'dawn' and args.backend.startswith('end2end'):
+    cmd = [path.join(args.build_dir, DAWN_END2END_TEST_CMD)]
+    cmd += generate_unittest_arguments(args)
+  elif args.test == 'dawn' and args.backend == 'perf':
+    cmd = [path.join(args.build_dir, DAWN_PERF_TEST_CMD)]
+    cmd += generate_unittest_arguments(args)
+  elif args.test == 'angle' and args.backend == 'end2end':
+    cmd = [path.join(args.build_dir, ANGLE_END2END_TEST_CMD)]
+    cmd += generate_unittest_arguments(args)
+  elif args.test == 'angle' and args.backend == 'perf':
+    cmd = [path.join(args.build_dir, ANGLE_PERF_TEST_CMD)]
+    cmd += generate_unittest_arguments(args)
+  elif args.test == 'gpu' and args.backend == 'gl':
+    cmd = [path.join(args.build_dir, GL_TEST_CMD)]
+    cmd += generate_unittest_arguments(args)
+  elif args.test == 'gpu' and args.backend == 'vulkan':
+    cmd = [path.join(args.build_dir, VULKAN_TEST_CMD)]
+    cmd += generate_unittest_arguments(args)
+  elif args.test == 'aquarium':
     cmd = [path.join(args.build_dir, AQUARIUM_CMD)]
     cmd += generate_aquarium_arguments(args)
-  else:
-    if args.test_type == 'dawn':
-      if args.backend.startswith('end2end'):
-        cmd = [path.join(args.build_dir, DAWN_END2END_TEST_CMD)]
-      elif args.backend == 'perf':
-        cmd = [path.join(args.build_dir, DAWN_PERF_TEST_CMD)]
-    elif args.test_type == 'angle':
-      if args.backend == 'end2end':
-        cmd = [path.join(args.build_dir, ANGLE_END2END_TEST_CMD)]
-      elif args.backend == 'perf':
-        cmd = [path.join(args.build_dir, ANGLE_PERF_TEST_CMD)]
-    elif args.test_type == 'gpu':
-      if args.backend == 'gl':
-        cmd = [path.join(args.build_dir, GL_TEST_CMD)]
-      elif args.backend == 'vulkan':
-        cmd = [path.join(args.build_dir, VULKAN_TEST_CMD)]
-    cmd += generate_unittest_arguments(args)
-    total_shards = '--test-launcher-total-shards'
-    shard_index = '--test-launcher-shard-index'
   cmd += extra_args
 
-  args.log_file = '%s_%s.log' % (args.test_type, args.backend)
-  args.result_file = '%s_%s.json' % (args.test_type, args.backend)
+  if args.shard == 1:
+    execute_shard(cmd, args)
+  else:
+    if args.test in ['webgl', 'webgl2', 'blink']:
+      total_shards = '--total-shards'
+      shard_index = '--shard-index'
+    elif args.test in ['dawn', 'angle', 'gpu']:
+      total_shards = '--test-launcher-total-shards'
+      shard_index = '--test-launcher-shard-index'
 
-  try:
-    if args.shard == 1:
-      execute_shard(cmd, args)
+    cmd += ['%s=%d' % (total_shards, args.shard)]
+    if args.index >= 0:
+      execute_shard(cmd + ['%s=%d' % (shard_index, args.index)], args)
     else:
-      cmd += ['%s=%d' % (total_shards, args.shard)]
-      if args.index >= 0:
-        cmd += ['%s=%d' % (shard_index, args.index)]
-        execute_shard(cmd, args)
-      else:
-        for i in range(0, args.shard):
-          args.index = i
-          index_cmd = ['%s=%d' % (shard_index, args.index)]
-          execute_shard(cmd + index_cmd, args)
-  except CalledProcessError:
-    pass
+      for i in range(0, args.shard):
+        args.index = i
+        execute_shard(cmd + ['%s=%d' % (shard_index, args.index)], args)
+
 
 if __name__ == '__main__':
   sys.exit(main())

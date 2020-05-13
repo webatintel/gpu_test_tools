@@ -15,6 +15,7 @@ TRYJOB_REPORT   = 'tryjob_report.txt'
 AQUARIUM_REPORT = 'aquarium_report.txt'
 
 PATTERN_AQUARIUM_TEST = r'^aquarium_(\w+)\s+(\d+)$'
+
 PATTERN_FLAKY_PASS    = r'^.*\[Flaky Pass:(\d+)\].*$'
 PATTERN_NEW_PASS      = r'^.*\[New Pass:(\d+)\].*$'
 PATTERN_NEW_FAIL      = r'^.*\[New Fail:(\d+)\].*$'
@@ -22,17 +23,17 @@ PATTERN_NEW_FAIL      = r'^.*\[New Fail:(\d+)\].*$'
 
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
-  job_choice = set()
+  job_set = set()
   for _, _, job_type in config['tryjob']:
     if get_osname() in job_type:
-      job_choice |= set(job_type)
+      job_set |= set(job_type)
 
   parser = argparse.ArgumentParser(
       description='Run selected tests with your local build.\n'\
                   'Once the tests are finished, the statistics are output to the screen and the file "tryjob_report.txt".\n'\
                   'The tryjob configuration is in "tryjob.json".\n\n',
       formatter_class=argparse.RawTextHelpFormatter)
-  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=list(job_choice), default=[get_osname()],
+  parser.add_argument('--job-type', '--job', '-j', nargs='+', choices=sorted(list(job_set)), default=[get_osname()],
       help='You can select one or more jobs from the candidates. By default, all available jobs will be run.\n\n')
   parser.add_argument('--test-filter', '--filter', '-f', nargs='+',
       help='You can specify one or more keywords (the logic is OR), the test that contains the keyword will be run.\n\n')
@@ -61,8 +62,8 @@ def parse_arguments():
   args = parser.parse_args()
 
   args.tryjob_shards = config['tryjob_shards']
-  args.receiver_admin = config['email']['receiver']['admin']
-  args.receiver_tryjob = config['email']['receiver']['tryjob']
+  args.receiver_admin    = config['email']['receiver']['admin']
+  args.receiver_tryjob   = config['email']['receiver']['tryjob']
   args.receiver_aquarium = config['email']['receiver']['aquarium']
   args.aquarium_average_fps = config['aquarium']['average_fps'][get_osname()]
 
@@ -90,13 +91,13 @@ def parse_arguments():
   if not args.run_tests:
     raise Exception('No available test for specified condition')
 
-  for test_type, _ in args.run_tests:
-    if test_type == 'aquarium':
+  for test, _ in args.run_tests:
+    if test == 'aquarium':
       if not args.aquarium_dir:
         raise Exception('Please specify --aquarium-dir')
-    elif test_type == 'angle' and args.angle_dir:
+    elif test == 'angle' and args.angle_dir:
       pass
-    elif test_type == 'dawn' and args.dawn_dir:
+    elif test == 'dawn' and args.dawn_dir:
       pass
     elif not args.chrome_dir:
       raise Exception('Please specify --chrome-dir')
@@ -211,21 +212,21 @@ def main():
 
   # Run tests
   mkdir(args.result_dir)
-  for test_type, backend in args.run_tests:
-    if test_type == 'aquarium' and aquarium_build_failed:
+  for test, backend in args.run_tests:
+    if test == 'aquarium' and aquarium_build_failed:
       continue
 
-    cmd = [path.join(BIN_DIR, 'run_gpu_test'), test_type, '--backend', backend, '--target', args.target]
-    if test_type == 'aquarium':
+    cmd = [path.join(BIN_DIR, 'run_gpu_test'), test, backend, '--target', args.target]
+    if test == 'aquarium':
       cmd += ['--dir', args.aquarium_dir]
-    elif test_type == 'angle' and args.angle_dir:
+    elif test == 'angle' and args.angle_dir:
       cmd += ['--dir', args.angle_dir]
-    elif test_type == 'dawn' and args.dawn_dir:
+    elif test == 'dawn' and args.dawn_dir:
       cmd += ['--dir', args.dawn_dir]
     else:
       cmd += ['--dir', args.chrome_dir]
 
-    for key in ['%s_%s' % (test_type, backend), test_type]:
+    for key in ['%s_%s' % (test, backend), test]:
       if key in args.tryjob_shards:
         cmd += ['--shard', str(args.tryjob_shards[key])]
         break
@@ -239,10 +240,10 @@ def main():
 
   # Parse result
   try:
-    aquarium_report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
-                                      return_log=True, dir=args.result_dir)
     tryjob_report = execute_command([path.join(BIN_DIR, 'parse_result')],
                                     return_log=True, dir=args.result_dir)
+    aquarium_report = execute_command([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
+                                      return_log=True, dir=args.result_dir)
   except CalledProcessError as e:
     notify_command_error(args, args.receiver_admin, e)
 
@@ -276,7 +277,6 @@ def main():
     print('Tryjob report   : ' + path.join(args.result_dir, TRYJOB_REPORT))
   if path.exists(path.join(args.result_dir, AQUARIUM_REPORT)):
     print('Aquarium report : ' + path.join(args.result_dir, AQUARIUM_REPORT))
-  return 0
 
 
 if __name__ == '__main__':

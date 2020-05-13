@@ -73,3 +73,4 @@ def get_gpu_info():
     return get_win_gpu_info()
   elif is_linux():
     return get_linux_gpu_info()
+  return None, None

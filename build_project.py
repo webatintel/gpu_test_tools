@@ -306,8 +306,6 @@ def main():
       if not args.prefix:
         remove(args.pack_dir)
 
-  return 0
-
 
 if __name__ == '__main__':
   sys.exit(main())
