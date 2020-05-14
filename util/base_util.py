@@ -33,6 +33,12 @@ def re_match(pattern, text):
     MATCHERS[pattern] = matcher
   return matcher.match(text)
 
+def match_any(targets, condition):
+  for target in targets:
+    if condition(target):
+      return True
+  return False
+
 def random_string(size):
   return ''.join(random.choice(string.ascii_lowercase) for i in range(size))
 

@@ -8,7 +8,7 @@ This repository provides the utilities to run conformance test and performance t
 If you want to run some type of tryjobs like official trybots and to check the results, `run_tryjob` is the only command you need to know. It runs selected tests with your local build. Once the tests are finished, the statistics are output to the screen and the file *tryjob_report.txt*.
 
 ```
-run_tryjob --job [webgl webgpu dawn angle gpu aquarium]
+run_tryjob --job [webgl webgpu gpu angle dawn aquarium]
            --test-filter [TEST_FILTER ...]
            --result-dir RESULT_DIR
            --chrome-dir CHROME_DIR
@@ -28,7 +28,7 @@ run_tryjob --job [webgl webgpu dawn angle gpu aquarium]
 - This is also the directory to run tests actually. So the coredumps or any intermediate files may be left here.
 - If not specified, the test will create a directory with timestamp *YEAR_DATE_TIME* under the *tryjob/* subdirectory of this repository.
 
-#### Specify the source directry: --chrome-dir, --dawn-dir, --angle-dir
+#### Specify the source directry: --chrome-dir, --angle-dir, --dawn-dir, --aquarium-dir
 - Chrome source is necessary to run WebGL/WebGPU/GPU tests.
 - Chrome source supports to run Dawn/ANGLE tests as well. But the test will prefer standalone Dawn/ANGLE source to Chrome source if you specified them both.
 - It's possible to specify sererated source directories for different type of tryjobs.
@@ -53,26 +53,28 @@ run_tryjob --job [webgl webgpu dawn angle gpu aquarium]
 ## Supporting tests
 - webgl
   - webgl_conformance_tests(d3d11)
-  - webgl_conformance_validating_tests
-  - webgl_conformance_gl_passthrough_tests
   - webgl_conformance_d3d9_passthrough_tests
+  - webgl_conformance_gl_passthrough_tests
   - webgl_conformance_vulkan_passthrough_tests
+  - webgl_conformance_validating_tests
   - webgl2_conformance_tests(d3d11)
-  - webgl2_conformance_validating_tests
   - webgl2_conformance_gl_passthrough_tests
+  - webgl2_conformance_validating_tests
 - webgpu
   - webgpu_blink_web_tests
+  - webgpu_blink_web_tests_with_backend_validation
+- gpu
+  - gl_tests
+  - vulkan_tests
+- angle
+  - angle_end2end_tests
+  - angle_perf_tests
 - dawn
   - dawn_end2end_tests
   - dawn_end2end_wire_tests
   - dawn_end2end_validation_layers_tests
+  - dawn_end2end_skip_validation_tests
   - dawn_perf_tests
-- angle
-  - angle_end2end_tests
-  - angle_perf_tests
-- gpu
-  - gl_tests
-  - vulkan_tests
 - aquarium
   - aquarium_dawn_vulkan_tests
   - aquarium_dawn_d3d12_tests

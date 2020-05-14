@@ -24,7 +24,7 @@ def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
   job_set = set()
   for _, _, platform, job_type in config['tryjob']:
-    if get_osname() in platform:
+    if get_platform() in platform:
       job_set |= set(job_type)
 
   parser = argparse.ArgumentParser(
@@ -56,15 +56,15 @@ def parse_arguments():
            '--build will be enabled automatically.\n\n')
   parser.add_argument('--email', '-e', action='store_true',
       help='Send the report by email.\n\n')
-  parser.add_argument('--dry-run', action='store_true',
-      help='Go through the process but do not run tests actually.\n\n')
+  parser.add_argument('--dry-run', nargs='?', default='none', choices=['win', 'linux', 'none'],
+      help='Go through the process but do not run test actually.\n'\
+           'You can specify the platform (win|linux) or leave it empty to use current platform.\n\n')
   args = parser.parse_args()
 
-  args.test_shards = config['test_shards']
-  args.receiver_admin    = config['email']['receiver']['admin']
-  args.receiver_tryjob   = config['email']['receiver']['tryjob']
-  args.receiver_aquarium = config['email']['receiver']['aquarium']
-  args.aquarium_average_fps = config['aquarium']['average_fps'][get_osname()]
+  if args.dry_run == 'none':
+    args.dry_run = None
+  elif not args.dry_run:
+    args.dry_run = get_platform()
 
   if args.dry_run:
     if not args.result_dir:
@@ -74,19 +74,22 @@ def parse_arguments():
     if not args.aquarium_dir:
       args.aquarium_dir = '.'
 
+  args.test_shards = config['test_shards']
+  args.receiver_admin    = config['email']['receiver']['admin']
+  args.receiver_tryjob   = config['email']['receiver']['tryjob']
+  args.receiver_aquarium = config['email']['receiver']['aquarium']
+  args.aquarium_average_fps = config['aquarium']['average_fps'][get_platform()]
+
   print('\nRun Tests:')
   args.run_tests = []
+  target_platform = args.dry_run if args.dry_run else get_platform()
   for test_name, test_arg, platform, job_type in config['tryjob']:
-    if get_osname() not in platform:
+    if not target_platform in platform:
       continue
     if args.job_type and not set(args.job_type) & set(job_type):
       continue
-    if args.test_filter:
-      matched = False
-      for keyword in args.test_filter:
-        matched |= keyword in test_name
-      if not matched:
-        continue
+    if args.test_filter and not match_any(args.test_filter, lambda x: x in test_name):
+      continue
     print(test_name)
     args.run_tests.append(test_arg)
   if not args.run_tests:
@@ -96,10 +99,12 @@ def parse_arguments():
     if test == 'aquarium':
       if not args.aquarium_dir:
         raise Exception('Please specify --aquarium-dir')
-    elif test == 'angle' and args.angle_dir:
-      pass
-    elif test == 'dawn' and args.dawn_dir:
-      pass
+    elif test == 'angle':
+      if not args.chrome_dir and args.angle_dir:
+        raise Exception('Please specify --chrome-dir or --angle-dir')
+    elif test == 'dawn':
+      if not args.chrome_dir and args.angle_dir:
+        raise Exception('Please specify --chrome-dir or --dawn-dir')
     elif not args.chrome_dir:
       raise Exception('Please specify --chrome-dir')
 
@@ -122,9 +127,7 @@ def parse_arguments():
 
 
 def update_tryjob_report(args, report):
-  flaky_pass = 0
-  new_pass = 0
-  new_fail = 0
+  flaky_pass, new_pass, new_fail = 0, 0, 0
   for line in report.splitlines():
     match = re_match(PATTERN_FLAKY_PASS, line)
     if match:
@@ -147,7 +150,7 @@ def update_tryjob_report(args, report):
   if not notice:
     notice = ' [All Clear]'
 
-  title = 'Tryjob Report - %s / %s -%s' % (get_osname().title(), get_hostname(), notice)
+  title = 'Tryjob Report - %s / %s -%s' % (get_platform().title(), get_hostname(), notice)
   return title, report
 
 
@@ -168,7 +171,7 @@ def update_aquarium_report(args, report):
     notice = '[Max Bias:%s%d%%]' % ('+' if max_bias >= 0 else '', max_bias)
   else:
     notice = '[No Bias]'
-  title = 'Aquarium Report - %s / %s - %s' % (get_osname().title(), get_hostname(), notice)
+  title = 'Aquarium Report - %s / %s - %s' % (get_platform().title(), get_hostname(), notice)
   return title, '\n'.join(lines)
 
 
@@ -188,8 +191,8 @@ def main():
   def notify_command_error(receiver, error):
     if args.email:
       send_email(receiver,
-                '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
-                '%s\n\n%s' % (' '.join(error.cmd), error.output))
+                 '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
+                 '%s\n\n%s' % (' '.join(error.cmd), error.output))
 
   # Build project
   aquarium_build_failed = False
@@ -202,14 +205,14 @@ def main():
       if args.angle_dir:
         build_project('angle', args.angle_dir)
     except CalledProcessError as e:
-      notify_command_error(args, args.receiver_admin, e)
+      notify_command_error(args.receiver_admin, e)
       raise e
 
     try:
       if args.aquarium_dir:
         build_project('aquarium', args.aquarium_dir)
     except CalledProcessError as e:
-      notify_command_error(args, args.receiver_aquarium, e)
+      notify_command_error(args.receiver_aquarium, e)
       aquarium_build_failed = True
 
   # Run tests
@@ -233,12 +236,12 @@ def main():
         cmd += ['--shard', str(args.test_shards[key])]
         break
     if args.dry_run:
-      cmd += ['--dry-run']
+      cmd += ['--dry-run', args.dry_run]
 
     try:
       execute_command(cmd, return_log=True, dir=args.result_dir)
     except CalledProcessError as e:
-      notify_command_error(args, args.receiver_admin, e)
+      notify_command_error(args.receiver_admin, e)
 
   # Parse result
   try:
@@ -247,7 +250,7 @@ def main():
     tryjob_report = execute_command([path.join(BIN_DIR, 'parse_result')],
                                     print_log=False, return_log=True, dir=args.result_dir)
   except CalledProcessError as e:
-    notify_command_error(args, args.receiver_admin, e)
+    notify_command_error(args.receiver_admin, e)
 
   header = 'Location: %s\n' % args.result_dir
   gpu, driver = get_gpu_info()

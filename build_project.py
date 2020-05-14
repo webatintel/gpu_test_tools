@@ -89,7 +89,7 @@ def parse_arguments():
       description='Build project.',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('project', nargs='?',
-      choices=['chrome', 'dawn', 'angle', 'aquarium', 'mesa'], default='chrome',
+      choices=['chrome', 'angle', 'dawn', 'aquarium', 'mesa'], default='chrome',
       help='The project to build. Default is "chrome".\n\n')
   parser.add_argument('--src-dir', '--dir', '-d', default='.',
       help='The source directory. Default is current directory.\n\n')
@@ -112,11 +112,11 @@ def parse_arguments():
   if args.prefix or args.zip:
     if len(args.target) > 1:
       raise Exception('Do not support to package multiple targets')
-    if args.project not in ['chrome', 'mesa']:
+    if not args.project in ['chrome', 'mesa']:
       raise Exception('Do not support to package ' + args.project)
 
   for target in args.target:
-    if target.split('_')[0] not in ['Default', 'Debug', 'Release']:
+    if not target.split('_')[0] in ['Default', 'Debug', 'Release']:
       raise Exception('Target iname must start with Default/Debug/Release')
 
   args.src_dir = path.abspath(args.src_dir)
@@ -143,12 +143,10 @@ def parse_arguments():
 def build_gn_project(args, build_args, build_targets):
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
-  arg_list = ['%s=%s' % (key,value) for key,value in build_args.items()]
-  execute_command(['gn', 'gen', args.build_dir, '--args=' + ' '.join(arg_list)],
-                  dir=args.src_dir, env=env)
+  gn_args = '--args=' + ' '.join(['%s=%s' % (key, value) for key, value in build_args.items()])
+  execute_command(['gn', 'gen', args.build_dir, gn_args], dir=args.src_dir, env=env)
   for target in build_targets:
-    execute_command(['autoninja', '-C', args.build_dir, target],
-                    dir=args.src_dir, env=env)
+    execute_command(['autoninja', '-C', args.build_dir, target], dir=args.src_dir, env=env)
 
 
 def build_chrome(args):
@@ -174,16 +172,6 @@ def build_chrome(args):
   build_gn_project(args, build_args, CHROME_BUILD_TARGET)
 
 
-def build_dawn(args):
-  build_args = {}
-  if args.build_type == 'debug':
-    build_args['is_debug'] = 'true'
-  elif args.build_type in ['default', 'release']:
-    build_args['is_debug'] = 'false'
-    build_args['dcheck_always_on'] = 'true'
-  build_gn_project(args, build_args, DAWN_BUILD_TARGET)
-
-
 def build_angle(args):
   build_args = {}
   if args.build_type == 'debug':
@@ -192,6 +180,16 @@ def build_angle(args):
     build_args['is_debug'] = 'false'
     build_args['dcheck_always_on'] = 'true'
   build_gn_project(args, build_args, ANGLE_BUILD_TARGET)
+
+
+def build_dawn(args):
+  build_args = {}
+  if args.build_type == 'debug':
+    build_args['is_debug'] = 'true'
+  elif args.build_type in ['default', 'release']:
+    build_args['is_debug'] = 'false'
+    build_args['dcheck_always_on'] = 'true'
+  build_gn_project(args, build_args, DAWN_BUILD_TARGET)
 
 
 def build_aquarium(args):
@@ -223,8 +221,8 @@ def build_mesa(args):
   elif args.build_type in ['default', 'release']:
     build_args['buildtype'] = 'release'
 
-  meson_cmd = ['meson', args.build_dir] + ['-D%s=%s' % (key,value) for key,value in build_args.items()]
-  execute_command(meson_cmd, dir=args.src_dir)
+  meson_args = ['-D%s=%s' % (key, value) for key, value in build_args.items()]
+  execute_command(['meson', args.build_dir] + meson_args, dir=args.src_dir)
   execute_command(['ninja', '-C', args.build_dir], dir=args.src_dir)
 
 
@@ -286,10 +284,10 @@ def main():
     args.build_dir = path.join('out', target)
     if args.project == 'chrome':
       build_chrome(args)
-    elif args.project == 'dawn':
-      build_dawn(args)
     elif args.project == 'angle':
       build_angle(args)
+    elif args.project == 'dawn':
+      build_dawn(args)
     elif args.project == 'aquarium':
       build_aquarium(args)
     elif args.project == 'mesa':
