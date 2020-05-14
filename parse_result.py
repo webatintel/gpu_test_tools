@@ -12,14 +12,12 @@ PATTERN_UNITTEST_RESULT_FAIL    = r'^\d+ test(s?) failed:$'
 PATTERN_UNITTEST_RESULT_CRASH   = r'^\d+ test(s?) crashed:$'
 PATTERN_UNITTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
 PATTERN_UNITTEST_RESULT_SKIP    = r'^\d+ test(s?) not run:$'
-
 PATTERN_UNITTEST_CASE  = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_UNITTEST_ERROR = r'^(.+) \(.+:\d+\)$'
 
 PATTERN_GTEST_RESULT_OK   = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./<>]+), .+ \(\d+ ms\)$'
-
 PATTERN_GTEST_RESULT_OVER = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
 
 PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
@@ -27,7 +25,7 @@ PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
   test_set = set()
-  for _, test_arg, _ in config['tryjob']:
+  for _, test_arg, _, _ in config['tryjob']:
     test_set.add(test_arg[0])
 
   parser = argparse.ArgumentParser(
@@ -42,6 +40,16 @@ def parse_arguments():
 
   if 'aquarium' in args.result_type and len(args.result_type) > 1:
     raise Exception('Can not merge aquarium result with others')
+
+  args.test_names = []
+  args.test_name_map = {}
+  for test_name, test_arg, _, _ in config['tryjob']:
+    pos = test_name.find('(')
+    if pos > 0:
+      test_name = test_name[0:pos]
+    args.test_names.append(test_name)
+    args.test_name_map.setdefault(test_arg[0], [])
+    args.test_name_map[test_arg[0]].append(test_name)
 
   args.result_dir = path.abspath(args.result_dir)
   return args
@@ -242,25 +250,6 @@ def parse_aquarium_result_file(result_file):
       return result
 
 
-def merge_shard_result(test_suites):
-  merged_result = {}
-  for test_suite in test_suites:
-    name = test_suite.name
-    while True:
-      name, ext = path.splitext(name)
-      if not ext:
-        break
-
-    merged_result.setdefault(name, TestSuite(name))
-    merged_result[name] += test_suite
-
-  sorted_suites = []
-  for test_name, _, _ in read_json(TRYJOB_CONFIG)['tryjob']:
-    if test_name in merged_result:
-      sorted_suites.append(merged_result.pop(test_name))
-  return sorted_suites + list(merged_result.values())
-
-
 def generate_test_report(test_suites):
   max_name_len = 0
   has_new_fail = False
@@ -308,26 +297,17 @@ def generate_test_report(test_suites):
 
 def main():
   args = parse_arguments()
-  config = read_json(TRYJOB_CONFIG)
 
   def find_result_file(test):
-    result_names = []
-    for test_name, test_arg, _ in config['tryjob']:
-      if test == test_arg[0]:
-        pos = test_name.find('(')
-        if pos > 0:
-          test_name = test_name[0:pos]
-        result_names.append(test_name)
-
     for file_path in list_file(args.result_dir):
-      file_name = path.basename(file_path)
       if test in ['webgl', 'webgl2', 'blink']:
         result_ext = 'json'
-      elif test in ['dawn', 'angle', 'gpu', 'aquarium']:
+      elif test in ['gpu', 'angle', 'dawn', 'aquarium']:
         result_ext = 'log'
+      file_name = path.basename(file_path)
       if not file_name.endswith(result_ext):
         continue
-      for name in result_names:
+      for name in args.test_name_map[test]:
         if file_name.startswith(name):
           yield file_path
           break
@@ -348,7 +328,7 @@ def main():
         report += '%s%d\n' % (name_format.format(result.name), result.average_fps)
       print(report, end='')
   else:
-    test_suites = []
+    merged_result = {}
     for test in args.result_type:
       for result_file in find_result_file(test):
         if test in ['webgl', 'webgl2', 'blink']:
@@ -358,13 +338,19 @@ def main():
           if not test_suite:
             test_suite = parse_gtest_result_file(result_file)
         if test_suite:
-          test_suites.append(test_suite)
+          name, ext = path.splitext(test_suite.name)
+          while ext:
+            name, ext = path.splitext(name)
+          merged_result.setdefault(name, TestSuite(name))
+          merged_result[name] += test_suite
 
-    if test_suites:
-      test_suites = merge_shard_result(test_suites)
-      report = generate_test_report(test_suites)
-      if report:
-        print(report, end='')
+    if merged_result:
+      sorted_suites = []
+      for name in args.test_names:
+        if name in merged_result:
+          sorted_suites.append(merged_result.pop(name))
+      assert not merged_result
+      print(generate_test_report(sorted_suites), end='')
 
 
 if __name__ == '__main__':

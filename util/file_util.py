@@ -84,6 +84,9 @@ def list_file(dir_name):
     if path.isfile(file_name):
       yield file_name
 
+def get_executable(file_path):
+  return file_path + ('.exe' if sys.platform == 'win32' else '')
+
 def copy_executable(src_dir, dest_dir, contents):
   for content in contents:
     if sys.platform == 'win32':
