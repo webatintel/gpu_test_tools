@@ -55,11 +55,12 @@ def parse_arguments():
            'For multiple shards, the running sequence will be shard0 * N times, shard1 * N times ...\n\n')
   parser.add_argument('--print-log', '-p', action='store_true',
       help='Print full test log when test is running.\n\n')
-  parser.add_argument('--dry-run', action='store_true',
-      help='Go through the process but do not run test actually.\n\n')
+  parser.add_argument('--dry-run', nargs='?', default='none', choices=['win', 'linux', 'none'],
+      help='Go through the process but do not run test actually.\n'\
+           'You can specify the platform (win|linux) or leave it empty to use current platform.\n\n')
   args, extra_args = parser.parse_known_args()
 
-  if args.backend not in test_backend[args.test]:
+  if not args.backend in test_backend[args.test]:
     raise Exception('The %s backend is not supported by %s test' % (args.backend, args.test))
 
   if args.filter:
@@ -89,12 +90,14 @@ def parse_arguments():
   args.browser_args = config['browser_args']
   for test_name, test_arg, _, _ in config['tryjob']:
     if args.test == test_arg[0] and args.backend == test_arg[1]:
-      pos = test_name.find('(')
-      if pos > 0:
-        test_name = test_name[0:pos]
       args.log_file = test_name + '.log'
       args.result_file = test_name + '.json'
       break
+
+  if args.dry_run == 'none':
+    args.dry_run = None
+  elif not args.dry_run:
+    args.dry_run = get_platform()
 
   args.src_dir = path.abspath(args.src_dir)
   if path.basename(args.src_dir) == 'chromium' and path.exists(path.join(args.src_dir, 'src')):
@@ -116,9 +119,9 @@ def execute_shard(cmd, args):
   for n in range(0, args.repeat):
     repeat_ext = '.' + format(n, '03d') if args.repeat > 1 else ''
     log_file = log_name + shard_ext + repeat_ext + log_ext
-    result_file = result_name + shard_ext + repeat_ext + result_ext
     result_arg = []
     if args.test in ['webgl', 'webgl2', 'blink']:
+      result_file = result_name + shard_ext + repeat_ext + result_ext
       result_arg = ['--write-full-results-to=' + result_file]
 
     if args.dry_run:
@@ -135,6 +138,7 @@ def execute_shard(cmd, args):
 def main():
   args, extra_args = parse_arguments()
 
+  # Generate command
   if args.test in ['webgl', 'webgl2']:
     cmd = [PYTHON_CMD, path.join(args.src_dir, WEBGL_TEST_SCRIPT)]
   elif args.test == 'blink':
@@ -154,42 +158,61 @@ def main():
   elif args.test == 'aquarium':
     cmd = [path.join(args.build_dir, AQUARIUM_CMD)]
 
+  # Read default arguments from the configuration file
   test_args = []
   browser_args = []
   for key in [args.test, args.test + '_' + args.backend]:
     test_args += args.test_args.get(key, [])
     browser_args += args.browser_args.get(key, [])
 
+  # Add location dependent arguments
   if args.test in ['webgl', 'webgl2']:
     browser_executable = get_executable(path.join(args.build_dir, 'chrome'))
     test_args += ['--browser=exact', '--browser-executable=' + browser_executable]
-    if args.test == 'webgl2':
-      test_args += ['--read-abbreviated-json-results-from=' + path.join(args.src_dir, WEBGL2_TEST_OUTPUT)]
-    if args.filter:
-      test_args += ['--test-filter=' + '::'.join(args.filter)]
-    if is_linux():
-      browser_args += ['--enable-logging=stderr']
-    if args.dry_run:
-      test_args += ['"--extra-browser-args=%s"' % ' '.join(browser_args)]
-    else:
-      test_args += ['--extra-browser-args=' + ' '.join(browser_args)]
   elif args.test == 'blink':
     test_args += ['--target=' + args.target]
-    if args.backend.startswith('webgpu'):
-      test_args += ['--additional-expectations=' + path.join(args.src_dir, WEBGPU_EXPECTATION)]
-      if is_linux():
-        test_args += ['--no-xvfb']
-        browser_args += ['--use-vulkan=native']
-      elif is_win():
-        browser_args += ['--disable-gpu-sandbox']
-    test_args += ['--additional-driver-flag=' + arg for arg in browser_args]
-  elif args.test in ['gpu', 'angle', 'dawn']:
+
+  if args.test == 'webgl2':
+    test_args += ['--read-abbreviated-json-results-from=' + path.join(args.src_dir, WEBGL2_TEST_OUTPUT)]
+  elif args.test == 'blink' and args.backend.startswith('webgpu'):
+    test_args += ['--additional-expectations=' + path.join(args.src_dir, WEBGPU_EXPECTATION)]
+
+  # Add platform dependent arguments
+  is_linux_os = args.dry_run == 'linux' if args.dry_run else is_linux()
+  is_win_os = args.dry_run == 'win' if args.dry_run else is_win()
+  if is_linux_os:
+    if args.test in ['webgl', 'webgl2']:
+      browser_args += ['--enable-logging=stderr']
     if args.test == 'angle' and args.backend == 'end2end':
-      args.filter += ['-*Vulkan_SwiftShader*']
-      if is_linux():
-        tests_args += ['--no-xvfb']
-    if args.filter:
-      test_args += ['--gtest_filter=' + ':'.join(args.filter)]
+      test_args += ['--no-xvfb']
+    if args.test == 'blink' and args.backend.startswith('webgpu'):
+      test_args += ['--no-xvfb']
+      browser_args += ['--use-vulkan=native']
+  elif is_win_os:
+    if args.test == 'blink' and args.backend.startswith('webgpu'):
+      browser_args += ['--disable-gpu-sandbox']
+
+  # Add filter
+  if args.filter:
+    if args.test in ['webgl', 'webgl2']:
+      test_args += ['--test-filter=' + '::'.join(args.filter)]
+    elif args.test in ['gpu', 'angle', 'dawn']:
+      for i in range(0, len(test_args)):
+        if test_args[i].startswith('--gtest_filter='):
+          test_args[i] += ':' + ':'.join(args.filter)
+          args.filter = None
+          break
+      if args.filter:
+        test_args += ['--gtest_filter=' + ':'.join(args.filter)]
+
+  # Integrate browser arguments
+  if args.test in ['webgl', 'webgl2']:
+    extra_browser_args = '--extra-browser-args=' + ' '.join(browser_args)
+    if args.dry_run:
+      extra_browser_args = '"%s"' % extra_browser_args
+    test_args += [extra_browser_args]
+  elif args.test == 'blink':
+    test_args += ['--additional-driver-flag=' + arg for arg in browser_args]
 
   cmd += test_args + extra_args
   if args.shard == 1:

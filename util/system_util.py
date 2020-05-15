@@ -22,7 +22,7 @@ def is_linux():
 def is_mac():
   return sys.platform == 'darwin'
 
-def get_osname():
+def get_platform():
   if is_win():
     return 'win'
   elif is_linux():
