@@ -12,15 +12,15 @@ run_tryjob --job [webgl webgpu gpu angle dawn aquarium]
            --test-filter [TEST_FILTER ...]
            --result-dir RESULT_DIR
            --chrome-dir CHROME_DIR
-           --dawn-dir DAWN_DIR
            --angle-dir ANGLE_DIR
+           --dawn-dir DAWN_DIR
            --aquarium-dir AQUARIUM_DIR
            --target TARGET
 ```
 
 #### Specify the tryjobs: --job, --test-filter
 - You can select one or more jobs from the candidates. For example, `--job webgpu dawn` will run all WebGPU and Dawn tests. By default, all available jobs will be run.
-- You can specify one or more keywords (the logic is *OR*), the test that contains the keyword will be run. For example, `--job webgl --test-filter d3d9 d3d11` will run WebGL tests with D3D9 and D3D11 backend.
+- You can specify one or more keywords (the logic is *OR*), the test that contains the keyword will be run. For example, `--job webgl --test-filter d3d9 gl` will run WebGL tests with D3D9 and OpenGL backend.
 - For the detail of tryjobs and related tests, please refer to the section **Supporting tests**.
 
 #### Specify the result directory: --result-dir
@@ -45,19 +45,19 @@ run_tryjob --job [webgl webgpu gpu angle dawn aquarium]
   `run_try_job --job webgpu dawn --chrome-dir CHROME_DIR --dawn-dir DAWN_DIR`
 - Run end2end tests of Dawn and ANGLE  
   `run_try_job --job dawn angle --test-filter end2end --chrome-dir CHROME_DIR`
-- Run WebGL tests with D3D9 and D3D11 backend  
-  `run_try_job --job webgl --test-filter d3d9 d3d11 --chrome-dir CHROME_DIR`
+- Run WebGL tests with D3D9 and OpenGL backend
+  `run_try_job --job webgl --test-filter d3d9 gl --chrome-dir CHROME_DIR`
 - Run WebGL and WebGPU tests and save the results to specific directory  
   `run_try_job --job webgl webgpu --chrome-dir CHROME_DIR --result-dir RESULT_DIR`
 
 ## Supporting tests
 - webgl
-  - webgl_conformance_tests(d3d11)
+  - webgl_conformance_tests
   - webgl_conformance_d3d9_passthrough_tests
   - webgl_conformance_gl_passthrough_tests
   - webgl_conformance_vulkan_passthrough_tests
   - webgl_conformance_validating_tests
-  - webgl2_conformance_tests(d3d11)
+  - webgl2_conformance_tests
   - webgl2_conformance_gl_passthrough_tests
   - webgl2_conformance_validating_tests
 - webgpu

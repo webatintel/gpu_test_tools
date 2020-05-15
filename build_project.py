@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import sys
 
-from os import path
 from util.base_util import *
 from util.file_util import *
 from util.system_util import *
@@ -115,9 +112,8 @@ def parse_arguments():
     if not args.project in ['chrome', 'mesa']:
       raise Exception('Do not support to package ' + args.project)
 
-  for target in args.target:
-    if not target.split('_')[0] in ['Default', 'Debug', 'Release']:
-      raise Exception('Target iname must start with Default/Debug/Release')
+  if match_any(args.target, lambda x: not x.split('_')[0] in ['Default', 'Debug', 'Release']):
+    raise Exception('Target iname must start with Default/Debug/Release')
 
   args.src_dir = path.abspath(args.src_dir)
   if args.prefix:
@@ -143,10 +139,10 @@ def parse_arguments():
 def build_gn_project(args, build_args, build_targets):
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
-  gn_args = '--args=' + ' '.join(['%s=%s' % (key, value) for key, value in build_args.items()])
-  execute_command(['gn', 'gen', args.build_dir, gn_args], dir=args.src_dir, env=env)
+  gn_args = ' '.join(['%s=%s' % (key, value) for key, value in build_args.items()])
+  execute(['gn', 'gen', args.build_dir, '--args=' + gn_args], dir=args.src_dir, env=env)
   for target in build_targets:
-    execute_command(['autoninja', '-C', args.build_dir, target], dir=args.src_dir, env=env)
+    execute(['autoninja', '-C', args.build_dir, target], dir=args.src_dir, env=env)
 
 
 def build_chrome(args):
@@ -165,8 +161,6 @@ def build_chrome(args):
     build_args['dcheck_always_on'] = 'true'
     if args.build_type == 'default':
       build_args['is_component_build'] = 'false'
-      build_args['build_angle_gles1_conform_tests'] = 'true'
-      build_args['internal_gles2_conform_tests'] = 'true'
     elif args.build_type == 'release':
       build_args['is_component_build'] = 'true'
   build_gn_project(args, build_args, CHROME_BUILD_TARGET)
@@ -222,14 +216,14 @@ def build_mesa(args):
     build_args['buildtype'] = 'release'
 
   meson_args = ['-D%s=%s' % (key, value) for key, value in build_args.items()]
-  execute_command(['meson', args.build_dir] + meson_args, dir=args.src_dir)
-  execute_command(['ninja', '-C', args.build_dir], dir=args.src_dir)
+  execute(['meson', args.build_dir] + meson_args, dir=args.src_dir)
+  execute(['ninja', '-C', args.build_dir], dir=args.src_dir)
 
 
 def pack_chrome(args):
   zip_file = path.join(args.src_dir, random_string(8) + '.zip')
-  execute_command([PYTHON_CMD, CHROME_PACK_SCRIPT, 'zip', args.build_dir,
-                  'telemetry_gpu_integration_test', zip_file], dir=args.src_dir)
+  execute(['vpython', CHROME_PACK_SCRIPT, 'zip', args.build_dir,
+           'telemetry_gpu_integration_test', zip_file], dir=args.src_dir)
   unzip(zip_file, args.pack_dir)
   remove(zip_file)
 
@@ -245,10 +239,10 @@ def pack_chrome(args):
 
 def update_aquarium_deps(args):
   dawn_dir = path.join(args.src_dir, 'third_party', 'dawn')
-  execute_command(['git', 'fetch', 'origin'], dir=dawn_dir)
-  execute_command(['git', 'rebase', 'origin/master'], dir=dawn_dir)
+  execute(['git', 'fetch', 'origin'], dir=dawn_dir)
+  execute(['git', 'rebase', 'origin/master'], dir=dawn_dir)
   dawn_revision = None
-  log = execute_command(['git', 'log', '-1'], print_log=False, return_log=True, dir=dawn_dir)
+  log = execute(['git', 'log', '-1'], print_log=False, return_log=True, dir=dawn_dir)
   for line in log.splitlines():
     match = re_match(PATTERN_COMMIT, line)
     if match:
@@ -258,12 +252,9 @@ def update_aquarium_deps(args):
 
   deps_file = path.join(args.src_dir, 'DEPS')
   deps_lines = read_file(deps_file).splitlines()
-  for i in range(0, len(deps_lines)):
-    match = re_match(PATTERN_DAWN_REVISION, deps_lines[i])
-    if match:
-      deps_lines[i] = '  \'dawn_revision\': \'' + dawn_revision + '\','
-      print('Changed dependent Dawn revision to its latest master branch')
-      break
+  index = index_match(deps_lines, lambda x: re_match(PATTERN_DAWN_REVISION, x))
+  deps_lines[index] = '  \'dawn_revision\': \'' + dawn_revision + '\','
+  print('Changed dependent Dawn revision to its latest master branch')
   write_line(deps_file, deps_lines)
 
 
@@ -271,13 +262,13 @@ def main():
   args = parse_arguments()
 
   if args.update:
-    execute_command(['git', 'checkout', '.'], dir=args.src_dir)
-    execute_command(['git', 'fetch', 'origin'], dir=args.src_dir)
-    execute_command(['git', 'rebase', 'origin/master'], dir=args.src_dir)
+    execute(['git', 'checkout', '.'], dir=args.src_dir)
+    execute(['git', 'fetch', 'origin'], dir=args.src_dir)
+    execute(['git', 'rebase', 'origin/master'], dir=args.src_dir)
     if args.project == 'aquarium':
       update_aquarium_deps(args)
     if args.project != 'mesa':
-      execute_command(['gclient', 'sync', '-D'], dir=args.src_dir)
+      execute(['gclient', 'sync', '-D'], dir=args.src_dir)
 
   for target in args.target:
     args.build_type = target.split('_')[0].lower()
@@ -297,7 +288,7 @@ def main():
     if args.project == 'chrome':
       pack_chrome(args)
     elif args.project == 'mesa':
-      execute_command(['ninja', '-C', args.build_dir, 'install'], dir=args.src_dir)
+      execute(['ninja', '-C', args.build_dir, 'install'], dir=args.src_dir)
 
     if args.zip:
       zip(args.zip, args.pack_dir)
