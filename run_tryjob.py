@@ -4,7 +4,6 @@ import argparse
 
 from util.base_util import *
 from util.file_util import *
-from util.system_util import *
 
 BIN_DIR    = path.join(path.dirname(path.abspath(__file__)), 'bin')
 TRYJOB_DIR = path.join(path.dirname(path.abspath(__file__)), 'tryjob')
@@ -119,14 +118,12 @@ def update_tryjob_report(args, report):
   flaky_pass, new_pass, new_fail = 0, 0, 0
   for line in report.splitlines():
     match = re_match(PATTERN_FLAKY_PASS, line)
-    if match:
-      flaky_pass += int(match.group(1))
-    match = re_match(PATTERN_NEW_PASS, line)
-    if match and not line.startswith('webgpu'):
-      new_pass += int(match.group(1))
+    flaky_pass += int(match.group(1)) if match else 0
+    if not line.startswith('webgpu'):
+      match = re_match(PATTERN_NEW_PASS, line)
+      new_pass += int(match.group(1)) if match else 0
     match = re_match(PATTERN_NEW_FAIL, line)
-    if match:
-      new_fail += int(match.group(1))
+    new_fail += int(match.group(1)) if match else 0
 
   notice = ''
   if new_fail:
@@ -168,9 +165,10 @@ def main():
                  '--target', args.target, '--dir', source_dir]
     build_cmd += ['--update'] if args.update else []
     try:
-      execute_passthrough(build_cmd)
-    except CalledProcessError:
-      execute(build_cmd, return_log=True)
+      execute(build_cmd)
+    except CalledProcessError as e:
+      e.output = execute_return(build_cmd)
+      raise e
 
   def notify_error(receiver, error):
     if args.email:
@@ -200,11 +198,11 @@ def main():
       aquarium_build_failed = True
 
   # Run tests
+  print('\nTest log: ' + args.result_dir)
   mkdir(args.result_dir)
   for module, backend in args.test_types:
     if module == 'aquarium' and aquarium_build_failed:
       continue
-
     cmd = [path.join(BIN_DIR, 'run_gpu_test'), module, backend, '--target', args.target]
     cmd += ['--dry-run', args.dry_run] if args.dry_run else []
     if module == 'aquarium':
@@ -217,34 +215,32 @@ def main():
       cmd += ['--dir', args.chrome_dir]
 
     try:
-      execute(cmd, return_log=True, dir=args.result_dir)
+      execute(cmd, dir=args.result_dir)
     except CalledProcessError as e:
       notify_error(args.receiver_admin, e)
 
   # Parse result
   try:
-    aquarium_report = execute([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
-                              print_log=False, return_log=True, dir=args.result_dir)
-    tryjob_report   = execute([path.join(BIN_DIR, 'parse_result')],
-                              print_log=False, return_log=True, dir=args.result_dir)
+    aquarium_report = execute_return([path.join(BIN_DIR, 'parse_result'), '--type', 'aquarium'],
+                                      dir=args.result_dir)
+    tryjob_report   = execute_return([path.join(BIN_DIR, 'parse_result')],
+                                      dir=args.result_dir)
   except CalledProcessError as e:
     notify_error(args.receiver_admin, e)
 
   header = 'Location: %s\n' % args.result_dir
   gpu, driver = get_gpu_info()
-  if gpu:
-    header += 'GPU: %s\n' % gpu
-  if driver:
-    header += 'Driver: %s\n' % driver
+  header += 'GPU: %s\n' % gpu if gpu else ''
+  header += 'Driver: %s\n' % driver if driver else ''
 
   if aquarium_report:
     title, aquarium_report = update_aquarium_report(args, aquarium_report)
     aquarium_report = '%s\n%s' % (header, aquarium_report)
-    print('\n--------------------------------------------------\n')
-    print('%s\n\n%s' % (title, aquarium_report))
     write_file(path.join(args.result_dir, AQUARIUM_REPORT), aquarium_report)
     if args.email:
       send_email(args.receiver_aquarium, title, aquarium_report)
+    print('\n--------------------------------------------------\n')
+    print('%s\n\n%s' % (title, aquarium_report))
 
   if tryjob_report:
     title, tryjob_report = update_tryjob_report(args, tryjob_report)
@@ -252,11 +248,11 @@ def main():
       revision = get_chrome_revision(args.chrome_dir)
       header += 'Chrome: %s\n' % revision if revision else ''
     tryjob_report = '%s\n%s' % (header, tryjob_report)
-    print('\n--------------------------------------------------\n')
-    print('%s\n\n%s' % (title, tryjob_report))
     write_file(path.join(args.result_dir, TRYJOB_REPORT), tryjob_report)
     if args.email:
       send_email(args.receiver_tryjob, title, tryjob_report)
+    print('\n--------------------------------------------------\n')
+    print('%s\n\n%s' % (title, tryjob_report))
 
   print('\n--------------------------------------------------\n')
   print('Test result     : ' + args.result_dir)

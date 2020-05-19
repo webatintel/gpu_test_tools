@@ -14,11 +14,8 @@ AQUARIUM_DIR = path.abspath(path.join(FILE_DIR, '..', '..', 'project', 'aquarium
 RUN_TRYJOB_CMD   = path.join(FILE_DIR, 'bin', 'run_tryjob')
 CHECK_TRYJOB_CMD = path.join(FILE_DIR, 'bin', 'check_tryjob')
 
-def execute(cmd, dir=None):
-  process = subprocess.Popen(cmd, cwd=dir, shell=(sys.platform=='win32'))
-  retcode = process.wait()
-  if retcode:
-    sys.exit(retcode)
+def execute(command, dir=None):
+  subprocess.run(command, cwd=dir, shell=(sys.platform=='win32'), check=True)
 
 def run_tryjob():
   weekday = datetime.date.today().weekday()
