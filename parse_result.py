@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import sys
 
 from util.base_util import *
 from util.file_util import *
-from os import path
 
 PATTERN_UNITTEST_RESULT_FAIL    = r'^\d+ test(s?) failed:$'
 PATTERN_UNITTEST_RESULT_CRASH   = r'^\d+ test(s?) crashed:$'
@@ -24,15 +21,15 @@ PATTERN_AVERAGE_FPS = r'^Avg FPS: (\d+)$'
 
 def parse_arguments():
   config = read_json(TRYJOB_CONFIG)
-  test_set = set()
-  for _, test_arg, _, _ in config['tryjob']:
-    test_set.add(test_arg[0])
+  module_set = set()
+  for _, test_type, _, _ in config['tryjob']:
+    module_set.add(test_type[0])
 
   parser = argparse.ArgumentParser(
       description='Parse test result and generate report',
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('--result-type', '--type', '-t', nargs='+',
-      choices=sorted(list(test_set)), default=sorted(list(test_set - set(['aquarium']))),
+      choices=sorted(list(module_set)), default=sorted(list(module_set - set(['aquarium']))),
       help='What type of test result to parse, you can specify multiple. Default is all except aquarium.\n\n')
   parser.add_argument('--result-dir', '--dir', '-d', default='.',
       help='The directory where the result files are located. Default is current directory.\n\n')
@@ -41,12 +38,10 @@ def parse_arguments():
   if 'aquarium' in args.result_type and len(args.result_type) > 1:
     raise Exception('Can not merge aquarium result with others')
 
-  args.result_order = []
-  args.result_name = {}
-  for test_name, test_arg, _, _ in config['tryjob']:
+  args.result_order, args.module_to_name = [], defaultdict(list)
+  for test_name, test_type, _, _ in config['tryjob']:
     args.result_order.append(test_name)
-    args.result_name.setdefault(test_arg[0], [])
-    args.result_name[test_arg[0]].append(test_name)
+    args.module_to_name[test_type[0]].append(test_name)
 
   args.result_dir = path.abspath(args.result_dir)
   return args
@@ -111,10 +106,9 @@ class TestSuite(object):
 
   def RemovePass(self, name):
     for pass_list in [self.actual_pass, self.unexpected_pass, self.flaky_pass]:
-      for i in range(0, len(pass_list)):
-        if pass_list[i].name == name:
-          pass_list.pop(i)
-          break
+      index = index_match(pass_list, lambda x: x.name == name)
+      if index >= 0:
+        pass_list.pop(index)
 
 
 def parse_json_result(name, value):
@@ -123,7 +117,7 @@ def parse_json_result(name, value):
   if 'SKIP' in actual:
     return test_result
 
-  test_result.result = match_any(actual, lambda x: x == 'PASS')
+  test_result.result = 'PASS' in actual
   test_result.retry = len(actual) - 1
   if test_result.result:
     test_result.is_flaky = test_result.retry > 0
@@ -167,7 +161,6 @@ def parse_unittest_result_file(result_file):
   test_suite = TestSuite(result_name)
   error_result = ''
   for line in read_line(result_file):
-    line = line.strip()
     if error_result:
       match = re_match(PATTERN_UNITTEST_ERROR, line)
       if match:
@@ -203,7 +196,6 @@ def parse_gtest_result_file(result_file):
   result_name, _ = path.splitext(path.basename(result_file))
   test_suite = TestSuite(result_name)
   for line in read_line(result_file):
-    line = line.strip()
     if re_match(PATTERN_GTEST_RESULT_OVER, line):
       break
     match = re_match(PATTERN_GTEST_RESULT_OK, line)
@@ -230,7 +222,6 @@ def parse_gtest_result_file(result_file):
 def parse_aquarium_result_file(result_file):
   result_name, _ = path.splitext(path.basename(result_file))
   for line in read_line(result_file):
-    line = line.strip()
     match = re_match(PATTERN_AVERAGE_FPS, line)
     if match:
       result = PerfResult(result_name)
@@ -259,10 +250,10 @@ def generate_test_report(test_suites):
       for test_result in test_suite.unexpected_fail:
         report += '%s    %s\n' % (test_result.suite_name, test_result.name)
 
-  if match_any(test_suites, lambda x: x.unexpected_pass and not x.name.startswith('webgpu_blink')):
+  if match_any(test_suites, lambda x: x.unexpected_pass and not x.name.startswith('webgpu')):
     report += '\nNew Pass:\n'
     for test_suite in test_suites:
-      if not test_suite.name.startswith('webgpu_blink'):
+      if not test_suite.name.startswith('webgpu'):
         for test_result in test_suite.unexpected_pass:
           report += '%s    %s\n' % (test_result.suite_name, test_result.name)
   
@@ -277,12 +268,12 @@ def generate_test_report(test_suites):
 def main():
   args = parse_arguments()
 
-  def find_result_file(test):
-    result_ext = 'json' if test in ['webgl', 'webgl2', 'blink'] else 'log'
+  def find_result_file(module):
+    result_ext = 'json' if module in ['webgl', 'blink'] else 'log'
     for file_path in list_file(args.result_dir):
       file_name = path.basename(file_path)
       if (file_name.endswith(result_ext) and 
-          match_any(args.result_name[test], lambda x: file_name.startswith(x))):
+          match_any(args.module_to_name[module], lambda x: file_name.startswith(x))):
         yield file_path
 
   if args.result_type == ['aquarium']:
@@ -302,14 +293,12 @@ def main():
       print(report, end='')
   else:
     merged_result = {}
-    for test in args.result_type:
-      for result_file in find_result_file(test):
-        if test in ['webgl', 'webgl2', 'blink']:
+    for module in args.result_type:
+      for result_file in find_result_file(module):
+        if module in ['webgl', 'blink']:
           test_suite = parse_json_result_file(result_file)
-        elif test in ['gpu', 'angle', 'dawn']:
-          test_suite = parse_unittest_result_file(result_file)
-          if not test_suite:
-            test_suite = parse_gtest_result_file(result_file)
+        elif module in ['gpu', 'angle', 'dawn']:
+          test_suite = parse_unittest_result_file(result_file) or parse_gtest_result_file(result_file)
         if test_suite:
           name, ext = path.splitext(test_suite.name)
           while ext:

@@ -6,9 +6,9 @@ import zipfile
 
 from os import path
 
-def mkdir(dir_name):
+def mkdir(dir_path):
   try:
-    os.makedirs(dir_name)
+    os.makedirs(dir_path)
   except OSError:
     pass
 
@@ -19,102 +19,96 @@ def copy(src, dest):
   if path.isfile(src):
     shutil.copy(src, dest)
   elif path.isdir(src):
-    if path.exists(dest):
-      dest = path.join(dest, path.basename(src))
+    dest = path.join(dest, path.basename(src)) if path.exists(dest) else dest
     shutil.copytree(src, dest)
 
-def remove(src):
-  if path.isfile(src):
-    os.remove(src)
-  elif path.isdir(src):
-    shutil.rmtree(src)
+def remove(path):
+  if path.isfile(path):
+    os.remove(path)
+  elif path.isdir(path):
+    shutil.rmtree(path)
 
-def zip(zip_file, src_dir):
-  with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as f:
+def zip(dest_file, src_dir):
+  with zipfile.ZipFile(dest_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zip_file:
     for root, _, files in os.walk(src_dir):
       for src_file in files:
         src_file = path.join(root, src_file)
-        f.write(src_file, path.relpath(src_file, src_dir))
+        zip_file.write(src_file, path.relpath(src_file, src_dir))
 
-def unzip(zip_file, dest_dir):
-  with zipfile.ZipFile(zip_file, 'r') as f:
-    f.extractall(dest_dir)
+def unzip(src_file, dest_dir):
+  with zipfile.ZipFile(src_file, 'r') as zip_file:
+    zip_file.extractall(dest_dir)
 
-def read_json(json_file):
+def read_json(file_path):
   try:
-    with open(json_file, 'r') as f:
-      return json.load(f)
-  except Exception:
+    with open(file_path, 'r') as json_file:
+      return json.load(json_file)
+  except (OSError, ValueError):
     return {}
 
-def write_json(json_file, content_dict):
-  if content_dict:
-    with open(json_file, 'w') as f:
-      json.dump(content_dict, f)
+def write_json(file_path, dict_content):
+  if dict_content:
+    with open(file_path, 'w') as json_file:
+      json.dump(dict_content, json_file)
 
-def read_line(file_name):
-  with open(file_name, 'r') as f:
-    while True:
+def read_line(file_path):
+  with open(file_path, 'r') as f:
+    line = f.readline()
+    while line:
+      yield line.rstrip()
       line = f.readline()
-      if not line:
-        break
-      yield line
 
-def write_line(file_name, lines):
-  if lines:
-    with open(file_name, 'w') as f:
-      f.write('\n'.join(lines))
-      f.write('\n')
+def write_line(file_path, lines):
+  with open(file_path, 'w') as f:
+    f.write('\n'.join(lines) + '\n')
 
-def read_file(file_name):
+def read_file(file_path):
   try:
-    with open(file_name, 'r') as f:
+    with open(file_path, 'r') as f:
       return f.read()
-  except Exception:
+  except OSError:
     return ''
 
-def write_file(file_name, content):
-  if content:
-    with open(file_name, 'w') as f:
-      f.write(content)
+def write_file(file_path, content):
+  with open(file_path, 'w') as f:
+    f.write(content)
 
-def list_file(dir_name):
-  for item in os.listdir(dir_name):
-    file_name = path.join(dir_name, item)
-    if path.isfile(file_name):
-      yield file_name
+def list_file(dir_path):
+  for item in os.listdir(dir_path):
+    item = path.join(dir_path, item)
+    if path.isfile(item):
+      yield item
 
 def get_executable(file_path):
   return file_path + ('.exe' if sys.platform == 'win32' else '')
 
-def copy_executable(src_dir, dest_dir, contents):
-  for content in contents:
+def copy_executable(src_dir, dest_dir, files):
+  for file_name in files:
     if sys.platform == 'win32':
-      content += '.exe'
-      copy(path.join(src_dir, content), dest_dir)
-      content += '.pdb'
-      if path.exists(content):
-        copy(path.join(src_dir, content), dest_dir)
+      file_name += '.exe'
+      copy(path.join(src_dir, file_name), dest_dir)
+      file_name += '.pdb'
+      if path.exists(file_name):
+        copy(path.join(src_dir, file_name), dest_dir)
     else:
-      copy(path.join(src_dir, content), dest_dir)
-      chmod(path.join(dest_dir, content), 755)
+      copy(path.join(src_dir, file_name), dest_dir)
+      chmod(path.join(dest_dir, file_name), 755)
 
-def copy_library(src_dir, dest_dir, contents):
-  for content in contents:
+def copy_library(src_dir, dest_dir, files):
+  for file_name in files:
     if sys.platform == 'win32':
-      content += '.dll'
-      copy(path.join(src_dir, content), dest_dir)
-      content += '.pdb'
-      if path.exists(content):
-        copy(path.join(src_dir, content), dest_dir)
+      file_name += '.dll'
+      copy(path.join(src_dir, file_name), dest_dir)
+      file_name += '.pdb'
+      if path.exists(file_name):
+        copy(path.join(src_dir, file_name), dest_dir)
     else:
-      content += '.so'
-      if not content.startswith('lib'):
-        content = 'lib' + content
-      copy(path.join(src_dir, content), dest_dir)
+      file_name += '.so'
+      file_name = ('lib' if not file_name.startswith('lib') else '') + file_name
+      copy(path.join(src_dir, file_name), dest_dir)
 
-def copy_resource(src_dir, dest_dir, contents):
-  for content in contents:
-    target_dir = path.join(dest_dir, path.dirname(content))
+def copy_resource(src_dir, dest_dir, items):
+  for item in items:
+    target_dir = path.join(dest_dir, path.dirname(item))
     mkdir(target_dir)
-    copy(path.join(src_dir, content), target_dir)
+    copy(path.join(src_dir, item), target_dir)
