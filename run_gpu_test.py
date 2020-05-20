@@ -4,7 +4,6 @@ import argparse
 
 from util.base_util import *
 from util.file_util import *
-from util.system_util import *
 
 WEBGL_TEST_SCRIPT  = path.join('content', 'test', 'gpu', 'run_gpu_integration_test.py')
 WEBGL2_TEST_OUTPUT = path.join('content', 'test', 'data', 'gpu', 'webgl2_conformance_tests_output.json')
@@ -124,9 +123,7 @@ def execute_shard(args, cmd):
       print(' '.join(cmd + result_arg))
       continue
     try:
-      print(log_name + shard_ext + repeat_ext)
-      execute(cmd + result_arg, print_log=args.print_log,
-              return_log=False, save_log=log_file, env=env)
+      execute_log(cmd + result_arg, log_file, print_log=args.print_log, env=env)
     except CalledProcessError:
       pass
 

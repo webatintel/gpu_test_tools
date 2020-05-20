@@ -46,7 +46,7 @@
     "gpu":                 ["--use-gpu-in-tests", "--test-launcher-bot-mode", "--cfi-diag=0"],
     "angle_end2end":       ["--use-gpu-in-tests", "--test-launcher-bot-mode", "--cfi-diag=0", "--test-launcher-retry-limit=0", "--test-launcher-batch-limit=256", "--gtest_filter=-*Vulkan_SwiftShader*"],
     "angle_end2end_linux": ["--no-xvfb"],
-    "dawn_end2end":        ["--use-gpu-in-tests", "--test-launcher-retry-limit=0"],
+    "dawn_end2end":        ["--use-gpu-in-tests", "--test-launcher-retry-limit=0", "--exclusive-device-type-preference=discrete,integrated"],
     "dawn_end2end_wire":   ["--use-wire"],
     "dawn_end2end_valid":  ["--enable-backend-validation"],
     "dawn_end2end_skip":   ["--skip-validation"],

@@ -4,7 +4,6 @@ import argparse
 
 from util.base_util import *
 from util.file_util import *
-from util.system_util import *
 
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
@@ -80,7 +79,6 @@ CHROME_SRC_RESOURCE = [
 PATTERN_COMMIT = r'^commit (\w+)$'
 PATTERN_DAWN_REVISION = r'  \'dawn_revision\': \'\w+\''
 
-
 def parse_arguments():
   parser = argparse.ArgumentParser(
       description='Build project.',
@@ -142,7 +140,7 @@ def build_gn_project(args, build_args, build_targets):
   gn_args = ' '.join(['%s=%s' % (key, value) for key, value in build_args.items()])
   execute(['gn', 'gen', args.build_dir, '--args=' + gn_args], dir=args.src_dir, env=env)
   for target in build_targets:
-    execute(['autoninja', '-C', args.build_dir, target], dir=args.src_dir, env=env)
+    execute_progress(['autoninja', '-C', args.build_dir, target], dir=args.src_dir, env=env)
 
 
 def build_chrome(args):
@@ -217,7 +215,7 @@ def build_mesa(args):
 
   meson_args = ['-D%s=%s' % (key, value) for key, value in build_args.items()]
   execute(['meson', args.build_dir] + meson_args, dir=args.src_dir)
-  execute(['ninja', '-C', args.build_dir], dir=args.src_dir)
+  execute_progress(['ninja', '-C', args.build_dir], dir=args.src_dir)
 
 
 def pack_chrome(args):
@@ -242,7 +240,7 @@ def update_aquarium_deps(args):
   execute(['git', 'fetch', 'origin'], dir=dawn_dir)
   execute(['git', 'rebase', 'origin/master'], dir=dawn_dir)
   dawn_revision = None
-  log = execute(['git', 'log', '-1'], print_log=False, return_log=True, dir=dawn_dir)
+  log = execute_return(['git', 'log', '-1'], dir=dawn_dir)
   for line in log.splitlines():
     match = re_match(PATTERN_COMMIT, line)
     if match:
