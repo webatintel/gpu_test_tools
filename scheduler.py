@@ -6,32 +6,31 @@ import sched
 import subprocess
 import sys
 import time
+
 from os import path
 
-FILE_DIR = path.dirname(path.abspath(__file__))
-CHROME_DIR   = path.abspath(path.join(FILE_DIR, '..', '..', 'project', 'chromium'))
-AQUARIUM_DIR = path.abspath(path.join(FILE_DIR, '..', '..', 'project', 'aquarium'))
-RUN_TRYJOB_CMD   = path.join(FILE_DIR, 'bin', 'run_tryjob')
-CHECK_TRYJOB_CMD = path.join(FILE_DIR, 'bin', 'check_tryjob')
+REPOSITORY_DIR = path.dirname(path.abspath(__file__))
+CHROME_DIR   = path.abspath(path.join(REPOSITORY_DIR, '..', '..', 'project', 'chromium'))
+AQUARIUM_DIR = path.abspath(path.join(REPOSITORY_DIR, '..', '..', 'project', 'aquarium'))
+RUN_TRYJOB   = path.join(REPOSITORY_DIR, 'bin', 'run_tryjob')
+CHECK_TRYJOB = path.join(REPOSITORY_DIR, 'bin', 'check_tryjob')
 
 def execute(command, dir=None):
-  subprocess.run(command, cwd=dir, shell=(sys.platform=='win32'), check=True)
+  subprocess.run(command, cwd=dir, shell=(sys.platform=='win32'))
 
 def run_tryjob():
   weekday = datetime.date.today().weekday()
   job_type = ['regular']
-  if weekday == 5:
-    job_type += ['fyi']
-  elif weekday == 6:
-    job_type += ['aquarium']
+  job_type += ['fyi'] if weekday == 5 else []
+  job_type += ['aquarium'] if weekday == 6 else []
 
-  execute(['git', 'checkout', '.'], FILE_DIR)
-  execute(['git', 'fetch', 'origin'], FILE_DIR)
-  execute(['git', 'rebase', 'origin/master'], FILE_DIR)
-  execute([RUN_TRYJOB_CMD, '--update', '--email', '--job'] + job_type +
+  execute(['git', 'checkout', '.'], REPOSITORY_DIR)
+  execute(['git', 'fetch', 'origin'], REPOSITORY_DIR)
+  execute(['git', 'rebase', 'origin/master'], REPOSITORY_DIR)
+  execute([RUN_TRYJOB, '--update', '--email', '--job'] + job_type +
           ['--chrome-dir', CHROME_DIR, '--aquarium-dir', AQUARIUM_DIR])
   if sys.platform == 'win32':
-    execute([CHECK_TRYJOB_CMD, '--dir', CHROME_DIR, '--email'])
+    execute([CHECK_TRYJOB, '--dir', CHROME_DIR, '--email'])
 
 def main():
   scheduler = sched.scheduler(time.time, time.sleep)

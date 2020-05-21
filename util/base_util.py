@@ -92,7 +92,7 @@ def execute(command, dir=None, env=None):
 
 def execute_return(command, dir=None, env=None):
   ret = subprocess.run(command, cwd=dir, env=env, shell=is_win(),
-                       check=True, capture_output=True, text=True)
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
   return ret.stdout.strip()
 
 def execute_log(command, log_path, print_log=True, dir=None, env=None):
@@ -120,14 +120,13 @@ def execute_log(command, log_path, print_log=True, dir=None, env=None):
 
 
 def execute_progress(command, dir=None, env=None):
-  print('\n[%s] \'%s\' in \'%s\'' % 
-        (get_currenttime('%Y/%m/%d %H:%M:%S'), ' '.join(command),
-         path.abspath(dir) if dir else os.getcwd()))
   is_ninja = command[0].find('ninja') >= 0
-  assert is_ninja
   start_time = get_currenttime()
   last_progress, base_progress_time = 0, 0
 
+  print('\n[%s] \'%s\' in \'%s\'' %
+        (get_currenttime('%Y/%m/%d %H:%M:%S'), ' '.join(command),
+         path.abspath(dir) if dir else os.getcwd()))
   process = subprocess.Popen(command, cwd=dir, env=env, shell=is_win(),
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   for line in iter(process.stdout.readline, b''):
@@ -187,14 +186,11 @@ def execute_progress(command, dir=None, env=None):
 
 
 def get_chrome_revision(src_dir, back_level=0):
-  try:
-    ret = execute_return(['git', 'log', '-1', 'HEAD~%d' % back_level], dir=src_dir)
-    for line in reversed(ret.split('\n')):
-      match = re_match(PATTERN_CHROME_REVISION, line)
-      if match:
-        return match.group(1)
-  except CalledProcessError:
-    pass
+  ret = execute_return(['git', 'log', '-1', 'HEAD~%d' % back_level], dir=src_dir)
+  for line in reversed(ret.split('\n')):
+    match = re_match(PATTERN_CHROME_REVISION, line)
+    if match:
+      return match.group(1)
   return ''
 
 def get_gpu_info_win():
@@ -217,17 +213,16 @@ def get_gpu_info_win():
 
 def get_gpu_info_linux():
   gpu, driver = None, None
-  try:
-    ret = execute_return(['glxinfo'])
-    for line in ret.splitlines():
-      match = re_match(PATTERN_GL_RENDER, line) if not gpu else None
-      gpu = match.group(1) if match else gpu
-      match = re_match(PATTERN_GL_VERSION, line) if not driver else None
-      driver = match.group(1) if match else driver
-      if gpu and driver:
-        return gpu, driver
-  except CalledProcessError:
-    pass
+  ret = execute_return(['glxinfo'])
+  for line in ret.splitlines():
+    if not gpu:
+      match = re_match(PATTERN_GL_RENDER, line)
+      gpu = match.group(1) if match else None
+    if not driver:
+      match = re_match(PATTERN_GL_VERSION, line)
+      driver = match.group(1) if match else None
+    if gpu and driver:
+      return gpu, driver
   return gpu, driver
 
 def get_gpu_info():
