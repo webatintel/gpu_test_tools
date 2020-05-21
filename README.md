@@ -24,9 +24,9 @@ run_tryjob --job [webgl webgpu gpu angle dawn aquarium]
 - For the detail of tryjobs and related tests, please refer to the section **Supporting tests**.
 
 #### Specify the result directory: --result-dir
-- This is where to hold test logs and test results. The final report *tryjob_report.txt* is generated here as well.
+- This is where to save test logs and test results. The final report *tryjob_report.txt* is generated here as well.
 - This is also the directory to run tests actually. So the coredumps or any intermediate files may be left here.
-- If not specified, the test will create a directory with timestamp *YEAR_DATE_TIME* under the *tryjob/* subdirectory of this repository.
+- If not specified, it will create a directory with timestamp *YEAR_DATE_TIME* under the *tryjob/* subdirectory of this repository.
 
 #### Specify the source directry: --chrome-dir, --angle-dir, --dawn-dir, --aquarium-dir
 - Chrome source is necessary to run WebGL/WebGPU/GPU tests.

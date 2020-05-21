@@ -33,7 +33,7 @@ def parse_arguments():
   args.receiver = config['email']['receiver']['admin']
 
   args.src_dir = path.abspath(args.src_dir)
-  if path.basename(args.src_dir) == 'chromium' and path.exists(path.join(args.src_dir, 'src')):
+  if path.exists(path.join(args.src_dir, 'src')):
     args.src_dir = path.join(args.src_dir, 'src')
   return args
 
@@ -158,8 +158,8 @@ def main():
     for name, tasks in total_tasks.items():
       print(name)
       if 'win' in tasks and 'linux' in tasks and tasks['win'] != tasks['linux']:
-        print('    [Win]\n' + str(tasks['win']))
-        print('    [Linux]\n' + str(tasks['linux']))
+        print('    [Win]\n%s' % tasks['win'])
+        print('    [Linux]\n%s' % tasks['linux'])
       elif 'win' in tasks:
         print(tasks['win'])
       elif 'linux' in tasks:

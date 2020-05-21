@@ -12,7 +12,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os import path
 
-TRYJOB_CONFIG = path.abspath(path.join(path.dirname(path.abspath(__file__)), '..', 'tryjob.json'))
+REPOSITORY_DIR = path.dirname(path.dirname(path.abspath(__file__)))
+TRYJOB_CONFIG = path.join(REPOSITORY_DIR, 'tryjob.json')
 
 def mkdir(dir_path):
   try:
