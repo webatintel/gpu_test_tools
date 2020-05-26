@@ -113,7 +113,6 @@ def find_tryjob(config_file):
         match_any(['mac', 'x86', 'ozone', 'deqp', 'angle', 'skia'], lambda x: x in name)):
       continue
     match = re_match(r'^(.*)-\((.*)\)$', name)
-    assert match
     name, gpu = match.group(1), match.group(2)
     if 'linux' in name:
       platform = 'linux'

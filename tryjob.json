@@ -1,24 +1,24 @@
 {
   "tryjob": [
-    ["webgl_conformance_tests",                        ["webgl", "v1_d3d11"],       ["win"         ], ["regular", "conformance", "chrome", "webgl", "webgl1", "d3d11"]],
-    ["webgl_conformance_d3d9_passthrough_tests",       ["webgl", "v1_d3d9"],        ["win"         ], ["regular", "conformance", "chrome", "webgl", "webgl1", "d3d9"]],
-    ["webgl_conformance_gl_passthrough_tests",         ["webgl", "v1_gl"],          ["win", "linux"], ["regular", "conformance", "chrome", "webgl", "webgl1", "gl"]],
-    ["webgl_conformance_vulkan_passthrough_tests",     ["webgl", "v1_vulkan"],      ["win", "linux"], ["regular", "conformance", "chrome", "webgl", "webgl1", "vulkan"]],
-    ["webgl_conformance_validating_tests",             ["webgl", "v1_valid"],       [       "linux"], ["regular", "conformance", "chrome", "webgl", "webgl1"]],
-    ["webgl2_conformance_tests",                       ["webgl", "v2_d3d11"],       ["win"         ], ["regular", "conformance", "chrome", "webgl", "webgl2", "d3d11"]],
-    ["webgl2_conformance_gl_passthrough_tests",        ["webgl", "v2_gl"],          ["win", "linux"], ["regular", "conformance", "chrome", "webgl", "webgl2", "gl"]],
-    ["webgl2_conformance_validating_tests",            ["webgl", "v2_valid"],       [       "linux"], ["regular", "conformance", "chrome", "webgl", "webgl2"]],
-    ["webgpu_blink_web_tests",                         ["blink", "webgpu"],         ["win", "linux"], ["regular", "conformance", "chrome", "blink", "webgpu"]],
-    ["webgpu_blink_web_tests_with_backend_validation", ["blink", "webgpu_valid"],   ["win", "linux"], ["fyi",     "conformance", "chrome", "blink", "webgpu"]],
-    ["gl_tests",                                       ["gpu", "gl"],               ["win", "linux"], ["regular", "unittest",    "chrome", "gpu", "gl"]],
-    ["vulkan_tests",                                   ["gpu", "vulkan"],           ["win", "linux"], ["regular", "unittest",    "chrome", "gpu", "vulkan"]],
-    ["angle_end2end_tests",                            ["angle", "end2end"],        ["win", "linux"], ["regular", "unittest",    "chrome", "angle"]],
-    ["angle_perf_tests",                               ["angle", "perf"],           ["win", "linux"], ["fyi",     "performance", "chrome", "angle"]],
-    ["dawn_end2end_tests",                             ["dawn", "end2end"],         ["win", "linux"], ["regular", "unittest",    "chrome", "dawn"]],
-    ["dawn_end2end_wire_tests",                        ["dawn", "end2end_wire"],    ["win", "linux"], ["fyi",     "unittest",    "chrome", "dawn"]],
-    ["dawn_end2end_validation_layers_tests",           ["dawn", "end2end_valid"],   ["win", "linux"], ["fyi",     "unittest",    "chrome", "dawn"]],
-    ["dawn_end2end_skip_validation_tests",             ["dawn", "end2end_skip"],    ["win", "linux"], ["fyi",     "unittest",    "chrome", "dawn"]],
-    ["dawn_perf_tests",                                ["dawn", "perf"],            ["win", "linux"], ["fyi",     "performance", "chrome", "dawn"]],
+    ["webgl_conformance_tests",                        ["webgl", "v1_d3d11"],       ["win"         ], ["regular", "chrome", "webgl", "webgl1", "d3d11"]],
+    ["webgl_conformance_d3d9_passthrough_tests",       ["webgl", "v1_d3d9"],        ["win"         ], ["regular", "chrome", "webgl", "webgl1", "d3d9"]],
+    ["webgl_conformance_gl_passthrough_tests",         ["webgl", "v1_gl"],          ["win", "linux"], ["regular", "chrome", "webgl", "webgl1", "gl"]],
+    ["webgl_conformance_vulkan_passthrough_tests",     ["webgl", "v1_vulkan"],      ["win", "linux"], ["regular", "chrome", "webgl", "webgl1", "vulkan"]],
+    ["webgl_conformance_validating_tests",             ["webgl", "v1_valid"],       [       "linux"], ["regular", "chrome", "webgl", "webgl1"]],
+    ["webgl2_conformance_tests",                       ["webgl", "v2_d3d11"],       ["win"         ], ["regular", "chrome", "webgl", "webgl2", "d3d11"]],
+    ["webgl2_conformance_gl_passthrough_tests",        ["webgl", "v2_gl"],          ["win", "linux"], ["regular", "chrome", "webgl", "webgl2", "gl"]],
+    ["webgl2_conformance_validating_tests",            ["webgl", "v2_valid"],       [       "linux"], ["regular", "chrome", "webgl", "webgl2"]],
+    ["webgpu_blink_web_tests",                         ["blink", "webgpu"],         ["win", "linux"], ["regular", "chrome", "blink", "webgpu"]],
+    ["webgpu_blink_web_tests_with_backend_validation", ["blink", "webgpu_valid"],   ["win", "linux"], ["fyi",     "chrome", "blink", "webgpu"]],
+    ["gl_tests",                                       ["gpu", "gl"],               ["win", "linux"], ["regular", "chrome", "gpu", "gl"]],
+    ["vulkan_tests",                                   ["gpu", "vulkan"],           ["win", "linux"], ["regular", "chrome", "gpu", "vulkan"]],
+    ["angle_end2end_tests",                            ["angle", "end2end"],        ["win", "linux"], ["regular", "chrome", "angle"]],
+    ["angle_perf_tests",                               ["angle", "perf"],           ["win", "linux"], ["fyi",     "chrome", "angle"]],
+    ["dawn_end2end_tests",                             ["dawn", "end2end"],         ["win", "linux"], ["regular", "chrome", "dawn"]],
+    ["dawn_end2end_wire_tests",                        ["dawn", "end2end_wire"],    ["win", "linux"], ["fyi",     "chrome", "dawn"]],
+    ["dawn_end2end_validation_layers_tests",           ["dawn", "end2end_valid"],   ["win", "linux"], ["fyi",     "chrome", "dawn"]],
+    ["dawn_end2end_skip_validation_tests",             ["dawn", "end2end_skip"],    ["win", "linux"], ["fyi",     "chrome", "dawn"]],
+    ["dawn_perf_tests",                                ["dawn", "perf"],            ["win", "linux"], ["fyi",     "chrome", "dawn"]],
     ["aquarium_dawn_vulkan_tests",                     ["aquarium", "dawn_vulkan"], ["win", "linux"], ["aquarium"]],
     ["aquarium_dawn_d3d12_tests",                      ["aquarium", "dawn_d3d12"],  ["win"         ], ["aquarium"]],
     ["aquarium_d3d12_tests",                           ["aquarium", "d3d12"],       ["win"         ], ["aquarium"]]
@@ -40,9 +40,9 @@
   "test_args": {
     "webgl":    ["webgl_conformance", "--show-stdout", "--passthrough", "-v", "--retry-only-retry-on-failure-tests"],
     "webgl_v2": ["--webgl-conformance-version=2.0.1"],
-    "blink":              ["--seed", "4", "--jobs=1", "--driver-logging", "--no-show-results", "--clobber-old-results", "--no-retry-failures"],
-    "blink_webgpu":       ["--isolated-script-test-filter=wpt_internal/webgpu/*", "--ignore-default-expectations"],
-    "blink_webgpu_linux": ["--no-xvfb"],
+    "blink":        ["--seed", "4", "--jobs=1", "--driver-logging", "--no-show-results", "--clobber-old-results", "--no-retry-failures"],
+    "blink_linux":  ["--no-xvfb"],
+    "blink_webgpu": ["--isolated-script-test-filter=wpt_internal/webgpu/*", "--ignore-default-expectations"],
     "gpu":                 ["--use-gpu-in-tests", "--test-launcher-bot-mode", "--cfi-diag=0"],
     "angle_end2end":       ["--use-gpu-in-tests", "--test-launcher-bot-mode", "--cfi-diag=0", "--test-launcher-retry-limit=0", "--test-launcher-batch-limit=256", "--gtest_filter=-*Vulkan_SwiftShader*"],
     "angle_end2end_linux": ["--no-xvfb"],
@@ -93,12 +93,12 @@
   "aquarium":{
     "average_fps": {
       "win": {
-        "d3d12": 32,
+        "d3d12": 33,
         "dawn_d3d12": 38,
-        "dawn_vulkan": 39
+        "dawn_vulkan": 38
       },
       "linux": {
-        "dawn_vulkan": 33
+        "dawn_vulkan": 50
       }
     }
   }

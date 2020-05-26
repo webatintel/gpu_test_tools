@@ -59,11 +59,11 @@ class TestResult(object):
     self.suite_name = None
     # True->Pass; False->Fail; None->Skip
     self.result = None
-    self.is_expected = False
+    self.retry = 0
     self.is_flaky = False
     self.is_timeout = False
     self.is_crash = False
-    self.retry = 0
+    self.is_expected = False
     self.duration = None
 
 
@@ -113,10 +113,10 @@ class TestSuite(object):
 
 def parse_json_result(name, value):
   test_result = TestResult(name)
-  actual = value['actual'].split(' ')
-  if 'SKIP' in actual:
+  if value['actual'] == 'SKIP':
     return test_result
 
+  actual = value['actual'].split(' ')
   test_result.result = 'PASS' in actual
   test_result.retry = len(actual) - 1
   if test_result.result:
@@ -125,12 +125,16 @@ def parse_json_result(name, value):
     test_result.is_crash = 'CRASH' in actual
     test_result.is_timeout = 'TIMEOUT' in actual
 
-  if value['actual'] == value['expected']:
+  expected = value['expected'].split(' ')
+  if actual == expected:
     test_result.is_expected = True
-  elif test_result.result and value['expected'] == 'PASS':
+  elif test_result.result and 'PASS' in expected:
     test_result.is_expected = True
-  elif not test_result.result and value['expected'] == 'FAIL':
+  elif (not test_result.result and
+        match_any(['FAIL', 'CRASH', 'TIMEOUT'], lambda x: x in expected)):
     test_result.is_expected = True
+  else:
+    test_result.is_expected = False
 
   if 'time' in value:
     test_result.duration = value['time']
