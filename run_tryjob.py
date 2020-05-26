@@ -5,8 +5,10 @@ import argparse
 from util.base_util import *
 from util.file_util import *
 
-BIN_DIR    = path.join(REPOSITORY_DIR, 'bin')
 TRYJOB_DIR = path.join(REPOSITORY_DIR, 'tryjob')
+BUILD_PROJECT = path.join(REPOSITORY_DIR, 'bin', 'build_project')
+RUN_GPU_TEST  = path.join(REPOSITORY_DIR, 'bin', 'run_gpu_test')
+PARSE_RESULT  = path.join(REPOSITORY_DIR, 'bin', 'parse_result')
 
 TRYJOB_REPORT   = 'tryjob_report.txt'
 AQUARIUM_REPORT = 'aquarium_report.txt'
@@ -64,7 +66,7 @@ def parse_arguments():
     args.aquarium_dir = args.aquarium_dir or '.'
 
   print('\nRun Tests:')
-  args.test_types = []
+  args.test_types, test_modules = [], set()
   platform = args.dry_run if args.dry_run else get_platform()
   for test_name, test_type, test_platform, job_type in config['tryjob']:
     if not platform in test_platform:
@@ -75,26 +77,23 @@ def parse_arguments():
       continue
     print(test_name)
     args.test_types.append(test_type)
+    test_modules.add(test_type[0])
+
   if not args.test_types:
     raise Exception('No available test for specified condition')
-
-  for module, backend in args.test_types:
-    if module == 'aquarium':
-      if not args.aquarium_dir:
-        raise Exception('Please specify --aquarium-dir')
-    elif module == 'angle':
-      if not args.chrome_dir and not args.angle_dir:
-        raise Exception('Please specify --chrome-dir or --angle-dir')
-    elif module == 'dawn':
-      if not args.chrome_dir and not args.dawn_dir:
-        raise Exception('Please specify --chrome-dir or --dawn-dir')
-    elif not args.chrome_dir:
-      raise Exception('Please specify --chrome-dir')
+  if 'aquarium' in test_modules and not args.aquarium_dir:
+    raise Exception('Please specify --aquarium-dir')
+  if 'angle' in test_modules and not args.chrome_dir and not args.angle_dir:
+    raise Exception('Please specify --chrome-dir or --angle-dir')
+  if 'dawn' in test_modules and not args.chrome_dir and not args.dawn_dir:
+    raise Exception('Please specify --chrome-dir or --dawn-dir')
+  if match_any(['webgl', 'blink', 'gpu'], lambda x: x in test_modules) and not args.chrome_dir:
+    raise Exception('Please specify --chrome-dir')
 
   args.receiver_admin    = config['email']['receiver']['admin']
   args.receiver_tryjob   = config['email']['receiver']['tryjob']
   args.receiver_aquarium = config['email']['receiver']['aquarium']
-  args.aquarium_average_fps = config['aquarium']['average_fps'][get_platform()]
+  args.average_fps = config['aquarium']['average_fps'][get_platform()]
 
   if args.result_dir:
     args.result_dir = path.abspath(args.result_dir)
@@ -111,7 +110,7 @@ def parse_arguments():
   return args
 
 
-def update_tryjob_report(args, report):
+def update_tryjob_report(report):
   new_fail, new_pass, flaky_pass = 0, 0, 0
   for line in report.splitlines():
     match = re_match(PATTERN_NEW_FAIL, line)
@@ -130,13 +129,13 @@ def update_tryjob_report(args, report):
   return title, report
 
 
-def update_aquarium_report(args, report):
+def update_aquarium_report(report, average_fps):
   max_bias = 0
   lines = report.splitlines()
   for i in range(len(lines)):
     match = re_match(PATTERN_AQUARIUM_TEST, lines[i])
     if match:
-      ref_value = args.aquarium_average_fps[match.group(1)]
+      ref_value = average_fps[match.group(1)]
       bias = (int(match.group(2)) - ref_value) * 100 // ref_value
       lines[i] += ' (%s%d%%)' % ('+' if bias >= 0 else '', bias)
       max_bias = bias if abs(bias) > abs(max_bias) else max_bias
@@ -146,44 +145,28 @@ def update_aquarium_report(args, report):
   return title, '\n'.join(lines)
 
 
-def build_project(project, dir, target, update):
-  build_cmd = [path.join(BIN_DIR, 'build_project'), project, '--dir', dir, '--target', target]
-  build_cmd += ['--update'] if update else []
-  try:
-    execute(build_cmd)
-  except CalledProcessError as e:
-    e.output = execute_return(build_cmd)
-    raise e
-
-def notify_error(receiver, error):
-  send_email(receiver,
-             '%s %s failed on %s' % (path.basename(error.cmd[0]), error.cmd[1], get_hostname()),
-             '%s\n\n%s' % (' '.join(error.cmd), error.output))
-
 def main():
   args = parse_arguments()
 
   # Build project
   if args.build or args.update:
-    try:
-      if args.chrome_dir:
-        build_project('chrome', args.chrome_dir, args.target, args.update)
-      if args.angle_dir:
-        build_project('angle', args.angle_dir, args.target, args.update)
-      if args.dawn_dir:
-        build_project('dawn', args.dawn_dir, args.target, args.update)
-    except CalledProcessError as e:
-      if args.email:
-        notify_error(args.receiver_admin, e)
-      raise e
-
-    try:
-      if args.aquarium_dir:
-        build_project('aquarium', args.aquarium_dir, args.target, args.update)
-    except CalledProcessError as e:
-      if args.email:
-        notify_error(args.receiver_aquarium, e)
-      args.aquarium_dir = None
+    for project in ['chrome', 'angle', 'dawn', 'aquarium']:
+      src_dir = getattr(args, project + '_dir')
+      if not src_dir:
+        continue
+      try:
+        cmd = [BUILD_PROJECT, project, '--dir', src_dir, '--target', args.target]
+        cmd += ['--update'] if args.update else []
+        execute(cmd)
+      except CalledProcessError as e:
+        if args.email:
+          send_email(args.receiver_aquarium if project == 'aquarium' else args.receiver_admin,
+                     'build_project %s failed on %s' % (project, get_hostname()),
+                     ' '.join(cmd) + '\n\n' + execute_return(cmd))
+        if project == 'aquarium':
+          args.aquarium_dir = None
+        else:
+          raise e
 
   # Run tests
   print('\nTest log: ' + args.result_dir)
@@ -191,16 +174,9 @@ def main():
   for module, backend in args.test_types:
     if module == 'aquarium' and not args.aquarium_dir:
       continue
-    cmd = [path.join(BIN_DIR, 'run_gpu_test'), module, backend, '--target', args.target]
+    cmd = [RUN_GPU_TEST, module, backend, '--target', args.target]
+    cmd += ['--dir', getattr(args, module + '_dir', None) or args.chrome_dir]
     cmd += ['--dry-run', args.dry_run] if args.dry_run else []
-    if module == 'aquarium':
-      cmd += ['--dir', args.aquarium_dir]
-    elif module == 'angle' and args.angle_dir:
-      cmd += ['--dir', args.angle_dir]
-    elif module == 'dawn' and args.dawn_dir:
-      cmd += ['--dir', args.dawn_dir]
-    else:
-      cmd += ['--dir', args.chrome_dir]
     execute(cmd, dir=args.result_dir)
 
   # Parse result
@@ -209,30 +185,28 @@ def main():
   header += 'GPU: %s\n' % gpu if gpu else ''
   header += 'Driver: %s\n' % driver if driver else ''
 
-  aquarium_report = execute_return([path.join(BIN_DIR, 'parse_result'),
-                                    '--type', 'aquarium', '--dir', args.result_dir])
+  aquarium_report = execute_return([PARSE_RESULT, '--type', 'aquarium', '--dir', args.result_dir])
   if aquarium_report:
-    title, aquarium_report = update_aquarium_report(args, aquarium_report)
-    aquarium_report = header + '\n' + aquarium_report
+    title, aquarium_report = update_aquarium_report(aquarium_report, args.average_fps)
+    aquarium_report = '%s\n\n%s\n%s' % (title, header, aquarium_report)
     write_file(path.join(args.result_dir, AQUARIUM_REPORT), aquarium_report)
     if args.email:
       send_email(args.receiver_aquarium, title, aquarium_report)
     print('\n--------------------------------------------------\n')
-    print(title + '\n\n' + aquarium_report)
+    print(aquarium_report)
 
-  tryjob_report = execute_return([path.join(BIN_DIR, 'parse_result'),
-                                  '--dir', args.result_dir])
+  tryjob_report = execute_return([PARSE_RESULT, '--dir', args.result_dir])
   if tryjob_report:
-    title, tryjob_report = update_tryjob_report(args, tryjob_report)
+    title, tryjob_report = update_tryjob_report(tryjob_report)
     if args.chrome_dir:
       revision = get_chrome_revision(args.chrome_dir)
       header += 'Chrome: %s\n' % revision if revision else ''
-    tryjob_report = header + '\n' + tryjob_report
+    tryjob_report = '%s\n\n%s\n%s' % (title, header, tryjob_report)
     write_file(path.join(args.result_dir, TRYJOB_REPORT), tryjob_report)
     if args.email:
       send_email(args.receiver_tryjob, title, tryjob_report)
     print('\n--------------------------------------------------\n')
-    print(title + '\n\n' + tryjob_report)
+    print(tryjob_report)
 
   print('\n--------------------------------------------------\n')
   print('Test result     : ' + args.result_dir)

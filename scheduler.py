@@ -18,12 +18,7 @@ CHECK_TRYJOB = path.join(REPOSITORY_DIR, 'bin', 'check_tryjob')
 def execute(command, dir=None):
   subprocess.run(command, cwd=dir, shell=(sys.platform=='win32'))
 
-def run_tryjob():
-  weekday = datetime.date.today().weekday()
-  job_type = ['regular']
-  job_type += ['fyi'] if weekday == 5 else []
-  job_type += ['aquarium'] if weekday == 6 else []
-
+def run_tryjob(job_type):
   execute(['git', 'checkout', '.'], REPOSITORY_DIR)
   execute(['git', 'fetch', 'origin'], REPOSITORY_DIR)
   execute(['git', 'rebase', 'origin/master'], REPOSITORY_DIR)
@@ -34,13 +29,21 @@ def run_tryjob():
 
 def main():
   scheduler = sched.scheduler(time.time, time.sleep)
-  today = datetime.date.today()
-  test_time = datetime.datetime(today.year, today.month, today.day, 20, 0)
+  test_time = None
   while True:
-    print("\nNext test time: " + test_time.strftime('%Y/%m/%d %H:%M'))
-    scheduler.enterabs(time.mktime(test_time.timetuple()), 1, run_tryjob, ())
+    today = datetime.date.today()
+    if not test_time or today > test_time.date():
+      test_date = today
+    else:
+      test_date = today + datetime.timedelta(days=1)
+    test_time = datetime.datetime(test_date.year, test_date.month, test_date.day, 20, 0)
+    print('\nTest time: ' + test_time.strftime('%Y/%m/%d %H:%M'))
+
+    job_type = ['regular']
+    job_type += ['fyi'] if test_time.isoweekday() == 6 else []
+    job_type += ['aquarium'] if test_time.isoweekday() == 7 else []
+    scheduler.enterabs(time.mktime(test_time.timetuple()), 1, run_tryjob, (job_type,))
     scheduler.run()
-    test_time += datetime.timedelta(days=1)
 
 if __name__ == '__main__':
   sys.exit(main())
