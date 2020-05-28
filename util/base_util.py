@@ -154,7 +154,7 @@ def execute_progress(command, dir=None, env=None):
     total_seconds = (get_currenttime() - start_time).total_seconds()
     print('    Total time: %d min' % (total_seconds // 60), end='')
     if progress == 100:
-      print(flush=True)
+      print('                              ', flush=True)
       continue
 
     if progress <= 3:

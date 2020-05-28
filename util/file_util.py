@@ -33,13 +33,13 @@ def copy(src, dest):
   else:
     assert False
 
-def remove(path):
-  if path.isfile(path):
-    os.remove(path)
-  elif path.islink(path):
-    os.unlink(path)
-  elif path.isdir(path):
-    shutil.rmtree(path)
+def remove(item):
+  if path.isfile(item):
+    os.remove(item)
+  elif path.islink(item):
+    os.unlink(item)
+  elif path.isdir(item):
+    shutil.rmtree(item)
 
 def zip(dest_file, src_dir):
   with zipfile.ZipFile(dest_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zip_file:

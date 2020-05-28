@@ -180,8 +180,8 @@ def main():
     execute(cmd, dir=args.result_dir)
 
   # Parse result
-  header = 'Location: %s\n' % args.result_dir
   gpu, driver = get_gpu_info()
+  header  = 'Location: %s\n' % args.result_dir
   header += 'GPU: %s\n' % gpu if gpu else ''
   header += 'Driver: %s\n' % driver if driver else ''
 
@@ -192,21 +192,19 @@ def main():
     write_file(path.join(args.result_dir, AQUARIUM_REPORT), aquarium_report)
     if args.email:
       send_email(args.receiver_aquarium, title, aquarium_report)
-    print('\n--------------------------------------------------\n')
-    print(aquarium_report)
+    print('\n--------------------------------------------------\n' + aquarium_report)
 
   tryjob_report = execute_return([PARSE_RESULT, '--dir', args.result_dir])
   if tryjob_report:
-    title, tryjob_report = update_tryjob_report(tryjob_report)
     if args.chrome_dir:
       revision = get_chrome_revision(args.chrome_dir)
       header += 'Chrome: %s\n' % revision if revision else ''
+    title, tryjob_report = update_tryjob_report(tryjob_report)
     tryjob_report = '%s\n\n%s\n%s' % (title, header, tryjob_report)
     write_file(path.join(args.result_dir, TRYJOB_REPORT), tryjob_report)
     if args.email:
       send_email(args.receiver_tryjob, title, tryjob_report)
-    print('\n--------------------------------------------------\n')
-    print(tryjob_report)
+    print('\n--------------------------------------------------\n' + tryjob_report)
 
   print('\n--------------------------------------------------\n')
   print('Test result     : ' + args.result_dir)

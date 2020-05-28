@@ -71,7 +71,7 @@ CHROME_RESOURCE = [
 CHROME_SRC_RESOURCE = [
   path.join('third_party', 'blink', 'tools'),
   path.join('third_party', 'blink', 'web_tests'),
-  path.join('third_party', 'pywebsocket3'),
+  path.join('third_party', 'pywebsocket3', 'src', 'mod_pywebsocket'),
 ]
 
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
