@@ -38,11 +38,11 @@
     "aquarium":      "aquarium"
   },
   "test_args": {
-    "webgl":    ["webgl_conformance", "--show-stdout", "--passthrough", "-v", "--retry-only-retry-on-failure-tests"],
+    "webgl":    ["webgl_conformance", "--show-stdout", "--passthrough", "-v", "--retry-only-retry-on-failure-tests", "--read-abbreviated-json-results-from="],
     "webgl_v2": ["--webgl-conformance-version=2.0.1"],
     "blink":        ["--seed", "4", "--jobs=1", "--driver-logging", "--no-show-results", "--clobber-old-results", "--no-retry-failures"],
     "blink_linux":  ["--no-xvfb"],
-    "blink_webgpu": ["--isolated-script-test-filter=wpt_internal/webgpu/*", "--ignore-default-expectations"],
+    "blink_webgpu": ["--isolated-script-test-filter=wpt_internal/webgpu/*", "--ignore-default-expectations", "--additional-expectations="],
     "gpu":                 ["--use-gpu-in-tests", "--test-launcher-bot-mode", "--cfi-diag=0"],
     "angle_end2end":       ["--use-gpu-in-tests", "--test-launcher-bot-mode", "--cfi-diag=0", "--test-launcher-retry-limit=0", "--test-launcher-batch-limit=256", "--gtest_filter=-*Vulkan_SwiftShader*"],
     "angle_end2end_linux": ["--no-xvfb"],

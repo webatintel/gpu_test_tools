@@ -6,6 +6,7 @@ from util.base_util import *
 from util.file_util import *
 
 WEBGL_TEST_SCRIPT  = path.join('content', 'test', 'gpu', 'run_gpu_integration_test.py')
+WEBGL_TEST_OUTPUT  = path.join('content', 'test', 'data', 'gpu', 'webgl_conformance_tests_output.json')
 WEBGL2_TEST_OUTPUT = path.join('content', 'test', 'data', 'gpu', 'webgl2_conformance_tests_output.json')
 
 BLINK_TEST_SCRIPT  = path.join('third_party', 'blink', 'tools', 'run_web_tests.py')
@@ -148,12 +149,16 @@ def main():
   if args.module == 'webgl':
     browser_executable = get_executable(path.join(args.target_dir, 'chrome'))
     test_args += ['--browser=exact', '--browser-executable=' + browser_executable]
-    if args.backend.startswith('v2'):
-      test_args += ['--read-abbreviated-json-results-from=' + path.join(args.src_dir, WEBGL2_TEST_OUTPUT)]
+    index = index_match(test_args, lambda x: x.startswith('--read-abbreviated-json-results-from='))
+    if args.backend.startswith('v1'):
+      test_args[index] += path.join(args.src_dir, WEBGL_TEST_OUTPUT)
+    elif args.backend.startswith('v2'):
+      test_args[index] += path.join(args.src_dir, WEBGL2_TEST_OUTPUT)
   elif args.module == 'blink':
     test_args += ['--target=' + args.target]
     if args.backend.startswith('webgpu'):
-      test_args += ['--additional-expectations=' + path.join(args.src_dir, WEBGPU_EXPECTATION)]
+      index = index_match(test_args, lambda x: x.startswith('--additional-expectations='))
+      test_args[index] += path.join(args.src_dir, WEBGPU_EXPECTATION)
 
   # Add filter
   if args.filter:

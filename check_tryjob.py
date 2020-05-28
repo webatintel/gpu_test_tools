@@ -98,8 +98,9 @@ def find_isolated_scripts(items):
               task.browser_args.append(browser_arg)
         elif arg.startswith('--additional-driver-flag='):
           task.browser_args.append(arg[len('--additional-driver-flag='):])
-        elif not match_any(['--browser=', '--target=', '--gtest-benchmark-name',
-                            '--read-abbreviated-json-results-from'], lambda x: arg.startswith(x)):
+        elif not match_any(['--browser=', '--target=', '--gtest-benchmark-name'], lambda x: arg.startswith(x)):
+          if arg.startswith('--read-abbreviated-json-results-from='):
+            arg = arg[:len('--read-abbreviated-json-results-from=')]
           task.test_args.append(arg)
       if 'swarming' in item and 'shards' in item['swarming']:
         task.shards = item['swarming']['shards']
