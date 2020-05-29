@@ -20,11 +20,10 @@ PATTERN_NEW_PASS   = r'^.*\[New Pass:(\d+)\].*$'
 PATTERN_NEW_FAIL   = r'^.*\[New Fail:(\d+)\].*$'
 
 def parse_arguments():
-  config = read_json(TRYJOB_CONFIG)
+  config = load_tryjob_config()
   job_set = set()
-  for _, _, test_platform, job_type in config['tryjob']:
-    if get_platform() in test_platform:
-      job_set |= set(job_type)
+  for _, _, _, job_type in config['tryjob']:
+    job_set |= set(job_type)
 
   parser = argparse.ArgumentParser(
       description='Run selected tests with your local build.\n'\

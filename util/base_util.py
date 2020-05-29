@@ -19,7 +19,7 @@ except ImportError:
 
 SYSTEM_CONTROL_CLASS_KEY = 'SYSTEM\CurrentControlSet\Control\Class'
 
-PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z\-\(\)]+ .+$'
+PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z_\-\(\)]+ .+$'
 PATTERN_CHROME_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
 
 PATTERN_GL_RENDER  = r'^OpenGL renderer string: Mesa (.+) \(.+\)$'
@@ -123,6 +123,7 @@ def execute_progress(command, dir=None, env=None):
   is_ninja = command[0].find('ninja') >= 0
   start_time = get_currenttime()
   last_progress, base_progress_time = 0, 0
+  no_newline = False
 
   print('\n[%s] \'%s\' in \'%s\'' %
         (get_currenttime('%Y/%m/%d %H:%M:%S'), ' '.join(command),
@@ -135,12 +136,16 @@ def execute_progress(command, dir=None, env=None):
       match = re_match(PATTERN_NINJA_PROGRESS, line)
 
     if not match:
+      if no_newline:
+        no_newline = False
+        print()
       print(line, flush=True)
       continue
     progress = int(match.group(1)) * 100 // int(match.group(2))
     if progress == last_progress:
       continue
 
+    no_newline = True
     last_progress = progress
     line = '['
     for i in range(progress//2):

@@ -52,14 +52,17 @@ run_tryjob --job [webgl webgpu gpu angle dawn aquarium]
 
 ## Supporting tests
 - webgl
-  - webgl_conformance_tests
+  - webgl_conformance_tests(d3d11)
   - webgl_conformance_d3d9_passthrough_tests
   - webgl_conformance_gl_passthrough_tests
   - webgl_conformance_vulkan_passthrough_tests
   - webgl_conformance_validating_tests
-  - webgl2_conformance_tests
+  - webgl2_conformance_tests(d3d11)
   - webgl2_conformance_gl_passthrough_tests
   - webgl2_conformance_validating_tests
+- fyi
+  - trace_test
+  - info_collection_tests
 - webgpu
   - webgpu_blink_web_tests
   - webgpu_blink_web_tests_with_backend_validation

@@ -13,7 +13,6 @@ from email.mime.text import MIMEText
 from os import path
 
 REPOSITORY_DIR = path.dirname(path.dirname(path.abspath(__file__)))
-TRYJOB_CONFIG = path.join(REPOSITORY_DIR, 'tryjob.json')
 
 def mkdir(dir_path):
   try:
@@ -59,6 +58,9 @@ def read_json(file_path):
   except ValueError:
     return {}
 
+def load_tryjob_config():
+  return read_json(path.join(REPOSITORY_DIR, 'tryjob.json'))
+
 def list_file(dir_path):
   for item in os.listdir(dir_path):
     item = path.join(dir_path, item)
@@ -88,7 +90,7 @@ def write_line(file_path, lines):
 def send_email(receiver, subject, body='', attach=[]):
   receiver = receiver if isinstance(receiver, list) else [receiver]
   attach = attach if isinstance(attach, list) else [attach]
-  config = read_json(TRYJOB_CONFIG)
+  config = load_tryjob_config()
 
   message = MIMEMultipart()
   message['From'] = config['email']['sender']
