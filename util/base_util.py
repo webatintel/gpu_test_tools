@@ -104,10 +104,6 @@ def execute_log(command, log_path, print_log=True, dir=None, env=None):
   with open(log_path, 'w') as log_file:
     for line in iter(process.stdout.readline, b''):
       line = line.decode().strip()
-      if match_any(['Unhandled inspector message',
-                    'WARNING:root:Unhandled inspector message'],
-                    lambda x: line.startswith(x)):
-        continue
       log_file.write(line + '\n')
       log_file.flush()
       os.fsync(log_file.fileno())
