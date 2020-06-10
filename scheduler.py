@@ -22,8 +22,11 @@ def run_tryjob(job_type):
   execute(['git', 'checkout', '.'], REPOSITORY_DIR)
   execute(['git', 'fetch', 'origin'], REPOSITORY_DIR)
   execute(['git', 'rebase', 'origin/master'], REPOSITORY_DIR)
-  execute([RUN_TRYJOB, '--update', '--email', '--job'] + job_type +
-          ['--chrome-dir', CHROME_DIR, '--aquarium-dir', AQUARIUM_DIR])
+
+  cmd = [RUN_TRYJOB, '--update', '--email', '--chrome-dir', CHROME_DIR, '--job'] + job_type
+  cmd += ['--aquarium-dir', AQUARIUM_DIR] if 'aquarium' in job_type else []
+  execute(cmd)
+
   if sys.platform == 'win32':
     execute([CHECK_TRYJOB, '--dir', CHROME_DIR, '--email'])
 
@@ -40,7 +43,7 @@ def main():
     print('\nTest time: ' + test_time.strftime('%Y/%m/%d %H:%M'))
 
     job_type = ['regular']
-    job_type += ['fyi'] if test_time.isoweekday() == 6 else []
+    job_type += ['extra'] if test_time.isoweekday() == 6 else []
     job_type += ['aquarium'] if test_time.isoweekday() == 7 else []
     scheduler.enterabs(time.mktime(test_time.timetuple()), 1, run_tryjob, (job_type,))
     scheduler.run()

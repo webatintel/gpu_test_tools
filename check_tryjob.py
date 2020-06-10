@@ -23,7 +23,7 @@ def parse_arguments():
       help='Send the error by email.\n\n')
   args = parser.parse_args()
 
-  config = read_json(TRYJOB_CONFIG)
+  config = load_tryjob_config()
   args.name_to_type = {}
   for test_name, test_type, _, _ in config['tryjob']:
     args.name_to_type[test_name] = test_type
@@ -89,15 +89,20 @@ def find_gtest_tests(items):
 def find_isolated_scripts(items):
   for item in items:
     name = item['name']
-    if match_any(['webgl', 'webgpu', 'angle_perf', 'dawn_perf'], lambda x: name.startswith(x)):
+    if match_any(['webgl', 'webgpu', 'angle_perf', 'dawn_perf', 'trace', 'info'], lambda x: name.startswith(x)):
       task = Task(name.replace('perftests', 'perf_tests'))
+      skip_next = False
       for arg in item['args']:
-        if arg.startswith('--extra-browser-args='):
+        if skip_next:
+          skip_next = False
+        elif arg.startswith('--extra-browser-args='):
           for browser_arg in arg[len('--extra-browser-args='):].split(' '):
             if not match_any(['--enable-logging', '--js-flags'], lambda x: browser_arg.startswith(x)):
               task.browser_args.append(browser_arg)
         elif arg.startswith('--additional-driver-flag='):
           task.browser_args.append(arg[len('--additional-driver-flag='):])
+        elif arg.startswith('--expected-') and arg.endswith('-id'):
+          skip_next = True
         elif not match_any(['--browser=', '--target=', '--gtest-benchmark-name'], lambda x: arg.startswith(x)):
           if arg.startswith('--read-abbreviated-json-results-from='):
             arg = arg[:len('--read-abbreviated-json-results-from=')]

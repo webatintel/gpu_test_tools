@@ -5,7 +5,7 @@ import argparse
 from util.base_util import *
 from util.file_util import *
 
-WEBGL_TEST_SCRIPT  = path.join('content', 'test', 'gpu', 'run_gpu_integration_test.py')
+GPU_TEST_SCRIPT    = path.join('content', 'test', 'gpu', 'run_gpu_integration_test.py')
 WEBGL_TEST_OUTPUT  = path.join('content', 'test', 'data', 'gpu', 'webgl_conformance_tests_output.json')
 WEBGL2_TEST_OUTPUT = path.join('content', 'test', 'data', 'gpu', 'webgl2_conformance_tests_output.json')
 
@@ -13,7 +13,7 @@ BLINK_TEST_SCRIPT  = path.join('third_party', 'blink', 'tools', 'run_web_tests.p
 WEBGPU_EXPECTATION = path.join('third_party', 'blink', 'web_tests', 'WebGPUExpectations')
 
 def parse_arguments():
-  config = read_json(TRYJOB_CONFIG)
+  config = load_tryjob_config()
   module_to_backend, backend_set = defaultdict(list), set()
   for _, test_type, _, _ in config['tryjob']:
     module_to_backend[test_type[0]].append(test_type[1])
@@ -111,7 +111,7 @@ def execute_shard(args, cmd):
   for n in range(args.repeat):
     repeat_ext = '.' + format(n, '03d') if args.repeat > 1 else ''
     log_file = log_name + shard_ext + repeat_ext + log_ext
-    if args.module in ['webgl', 'blink']:
+    if args.module in ['webgl', 'fyi', 'blink']:
       result_file = result_name + shard_ext + repeat_ext + result_ext
       result_arg = ['--write-full-results-to=' + result_file]
     else:
@@ -130,8 +130,8 @@ def main():
   args, extra_args = parse_arguments()
 
   # Generate command
-  if args.module == 'webgl':
-    cmd = ['vpython', path.join(args.src_dir, WEBGL_TEST_SCRIPT)]
+  if args.module in ['webgl', 'fyi']:
+    cmd = ['vpython', path.join(args.src_dir, GPU_TEST_SCRIPT)]
   elif args.module == 'blink':
     cmd = ['vpython', path.join(args.src_dir, BLINK_TEST_SCRIPT)]
   else:
@@ -150,19 +150,24 @@ def main():
     browser_executable = get_executable(path.join(args.target_dir, 'chrome'))
     test_args += ['--browser=exact', '--browser-executable=' + browser_executable]
     index = index_match(test_args, lambda x: x.startswith('--read-abbreviated-json-results-from='))
+    assert index > 0
     if args.backend.startswith('v1'):
       test_args[index] += path.join(args.src_dir, WEBGL_TEST_OUTPUT)
     elif args.backend.startswith('v2'):
       test_args[index] += path.join(args.src_dir, WEBGL2_TEST_OUTPUT)
+  elif args.module == 'fyi':
+    browser_executable = get_executable(path.join(args.target_dir, 'chrome'))
+    test_args += ['--browser=exact', '--browser-executable=' + browser_executable]
   elif args.module == 'blink':
     test_args += ['--target=' + args.target]
     if args.backend.startswith('webgpu'):
       index = index_match(test_args, lambda x: x.startswith('--additional-expectations='))
+      assert index > 0
       test_args[index] += path.join(args.src_dir, WEBGPU_EXPECTATION)
 
   # Add filter
   if args.filter:
-    if args.module in ['webgl']:
+    if args.module in ['webgl', 'fyi']:
       test_args += ['--test-filter=' + '::'.join(args.filter)]
     elif args.module in ['gpu', 'angle', 'dawn']:
       index = index_match(test_args, lambda x: x.startswith('--gtest_filter='))
@@ -172,7 +177,7 @@ def main():
         test_args[index] += ':' + ':'.join(args.filter)
 
   # Integrate browser arguments
-  if args.module == 'webgl':
+  if args.module in ['webgl', 'fyi']:
     test_args += ['--extra-browser-args=' + ' '.join(browser_args)]
   elif args.module == 'blink':
     test_args += ['--additional-driver-flag=' + arg for arg in browser_args]
@@ -183,7 +188,7 @@ def main():
   if args.shard == 1:
     execute_shard(args, cmd)
   else:
-    if args.module in ['webgl', 'blink']:
+    if args.module in ['webgl', 'fyi', 'blink']:
       cmd += ['--total-shards=%d' % args.shard]
       shard_index_flag = '--shard-index'
     elif args.module in ['gpu', 'angle', 'dawn']:

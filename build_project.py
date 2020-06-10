@@ -59,7 +59,6 @@ CHROME_LIBRARY = [
   'angle_util',
   'blink_deprecated_test_plugin',
   'blink_test_plugin',
-  'libGLESv1_CM',
 ]
 
 CHROME_RESOURCE = [
@@ -117,11 +116,13 @@ def parse_arguments():
   if args.prefix:
     args.prefix = path.abspath(args.prefix)
     if args.prefix == args.src_dir:
-      raise Exception('Prefix is same as the source directory')
+      raise Exception('Prefix is the same as source directory')
     if path.exists(args.prefix):
       raise Exception('Prefix already exits')
   if args.zip:
     args.zip = path.abspath(args.zip)
+    if not args.zip.endswith('.zip'):
+      raise Exception('Not a valid zip file name')
     if path.exists(args.zip):
       raise Exception('Zip file already exits')
 
@@ -134,13 +135,13 @@ def parse_arguments():
   return args
 
 
-def build_gn_project(src_dir, build_dir, build_args, build_targets):
+def build_gn_project(src_dir, target_dir, build_args, build_targets):
   env = get_env()
   env.pop('PKG_CONFIG_PATH', None)
   gn_args = ' '.join(['%s=%s' % (key, value) for key, value in build_args.items()])
-  execute(['gn', 'gen', build_dir, '--args=' + gn_args], dir=src_dir, env=env)
+  execute(['gn', 'gen', target_dir, '--args=' + gn_args], dir=src_dir, env=env)
   for target in build_targets:
-    execute_progress(['autoninja', '-C', build_dir, target], dir=src_dir, env=env)
+    execute_progress(['autoninja', '-C', target_dir, target], dir=src_dir, env=env)
 
 
 def build_chrome(args):
@@ -161,7 +162,7 @@ def build_chrome(args):
       build_args['is_component_build'] = 'true'
     elif args.build_type == 'default':
       build_args['is_component_build'] = 'false'
-  build_gn_project(args.src_dir, args.build_dir, build_args, CHROME_BUILD_TARGET)
+  build_gn_project(args.src_dir, args.target_dir, build_args, CHROME_BUILD_TARGET)
 
 
 def build_angle(args):
@@ -171,7 +172,7 @@ def build_angle(args):
   elif args.build_type in ['release', 'default']:
     build_args['is_debug'] = 'false'
     build_args['dcheck_always_on'] = 'true'
-  build_gn_project(args.src_dir, args.build_dir, build_args, ANGLE_BUILD_TARGET)
+  build_gn_project(args.src_dir, args.target_dir, build_args, ANGLE_BUILD_TARGET)
 
 
 def build_dawn(args):
@@ -181,7 +182,7 @@ def build_dawn(args):
   elif args.build_type in ['release', 'default']:
     build_args['is_debug'] = 'false'
     build_args['dcheck_always_on'] = 'true'
-  build_gn_project(args.src_dir, args.build_dir, build_args, DAWN_BUILD_TARGET)
+  build_gn_project(args.src_dir, args.target_dir, build_args, DAWN_BUILD_TARGET)
 
 
 def build_aquarium(args):
@@ -192,7 +193,7 @@ def build_aquarium(args):
     build_args['is_debug'] = 'false'
   if is_linux():
     build_args['dawn_enable_opengl'] = 'false'
-  build_gn_project(args.src_dir, args.build_dir, build_args, AQUARIUM_BUILD_TARGET)
+  build_gn_project(args.src_dir, args.target_dir, build_args, AQUARIUM_BUILD_TARGET)
 
 
 def build_mesa(args):
@@ -214,46 +215,45 @@ def build_mesa(args):
     build_args['buildtype'] = 'release'
 
   meson_args = ['-D%s=%s' % (key, value) for key, value in build_args.items()]
-  execute(['meson', args.build_dir] + meson_args, dir=args.src_dir)
-  execute_progress(['ninja', '-C', args.build_dir], dir=args.src_dir)
+  execute(['meson', args.target_dir] + meson_args, dir=args.src_dir)
+  execute_progress(['ninja', '-C', args.target_dir], dir=args.src_dir)
 
 
-def pack_chrome(src_dir, build_dir, pack_dir):
+def pack_chrome(src_dir, target_dir, dest_dir):
   zip_file = path.join(src_dir, random_string(8) + '.zip')
-  execute(['vpython', CHROME_PACK_SCRIPT, 'zip', build_dir,
+  execute(['vpython', CHROME_PACK_SCRIPT, 'zip', target_dir,
            'telemetry_gpu_integration_test', zip_file], dir=src_dir)
-  unzip(zip_file, pack_dir)
+  unzip(zip_file, dest_dir)
   remove(zip_file)
 
-  src_build = path.join(src_dir, build_dir)
-  dest_build = path.join(pack_dir, build_dir)
-  copy_executable(src_build, dest_build, CHROME_EXECUTABLE)
+  src_target = path.join(src_dir, target_dir)
+  dest_target = path.join(dest_dir, target_dir)
+  copy_executable(src_target, dest_target, CHROME_EXECUTABLE)
   if is_linux():
-    copy_executable(src_build, dest_build, CHROME_EXECUTABLE_BREAKPAD)
-  copy_library(src_build, dest_build, CHROME_LIBRARY)
-  copy_resource(src_build, dest_build, CHROME_RESOURCE)
-  copy_resource(src_dir, pack_dir, CHROME_SRC_RESOURCE)
+    copy_executable(src_target, dest_target, CHROME_EXECUTABLE_BREAKPAD)
+  copy_library(src_target, dest_target, CHROME_LIBRARY)
+  copy_resource(src_target, dest_target, CHROME_RESOURCE)
+  copy_resource(src_dir, dest_dir, CHROME_SRC_RESOURCE)
 
 
 def update_aquarium_deps(src_dir):
   dawn_dir = path.join(src_dir, 'third_party', 'dawn')
   execute(['git', 'fetch', 'origin'], dir=dawn_dir)
   execute(['git', 'rebase', 'origin/master'], dir=dawn_dir)
-  dawn_revision = None
   log = execute_return(['git', 'log', '-1'], dir=dawn_dir)
   for line in log.splitlines():
     match = re_match(PATTERN_COMMIT, line)
     if match:
       dawn_revision = match.group(1)
       break
-  assert dawn_revision
 
   deps_file = path.join(src_dir, 'DEPS')
   deps_lines = read_file(deps_file).splitlines()
   index = index_match(deps_lines, lambda x: re_match(PATTERN_DAWN_REVISION, x))
+  assert index > 0
   deps_lines[index] = '  \'dawn_revision\': \'' + dawn_revision + '\','
-  print('Changed dependent Dawn revision to its latest master branch')
   write_line(deps_file, deps_lines)
+  print('\nChanged dependent Dawn revision to its latest master branch')
 
 
 def main():
@@ -271,14 +271,14 @@ def main():
 
   for target in args.target:
     args.build_type = target.lower().split('_')[0]
-    args.build_dir = path.join('out', target)
+    args.target_dir = path.join('out', target)
     globals()['build_' + args.project](args)
   
   if args.prefix or args.zip:
     if args.project == 'chrome':
-      pack_chrome(args.src_dir, args.build_dir, args.pack_dir)
+      pack_chrome(args.src_dir, args.target_dir, args.pack_dir)
     elif args.project == 'mesa':
-      execute(['ninja', '-C', args.build_dir, 'install'], dir=args.src_dir)
+      execute(['ninja', '-C', args.target_dir, 'install'], dir=args.src_dir)
 
     if args.zip:
       zip(args.zip, args.pack_dir)
