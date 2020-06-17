@@ -101,9 +101,9 @@ def find_isolated_scripts(items):
               task.browser_args.append(browser_arg)
         elif arg.startswith('--additional-driver-flag='):
           task.browser_args.append(arg[len('--additional-driver-flag='):])
-        elif arg.startswith('--expected-') and arg.endswith('-id'):
-          skip_next = True
         elif not match_any(['--browser=', '--target=', '--gtest-benchmark-name'], lambda x: arg.startswith(x)):
+          if arg.startswith('--expected-') and arg.endswith('-id'):
+            skip_next = True
           if arg.startswith('--read-abbreviated-json-results-from='):
             arg = arg[:len('--read-abbreviated-json-results-from=')]
           task.test_args.append(arg)
