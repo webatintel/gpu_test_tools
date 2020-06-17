@@ -1,3 +1,5 @@
 # Test directories
 tryjob
+.vscode
 *.code-workspace
+
