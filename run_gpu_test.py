@@ -174,7 +174,7 @@ def main():
       if index < 0:
         test_args += ['--gtest_filter=' + ':'.join(args.filter)]
       else:
-        test_args[index] += ':' + ':'.join(args.filter)
+        test_args[index] = '--gtest_filter=' + ':'.join(args.filter)
 
   # Integrate browser arguments
   if args.module in ['webgl', 'fyi']:
