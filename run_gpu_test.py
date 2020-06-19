@@ -158,6 +158,11 @@ def main():
   elif args.module == 'fyi':
     browser_executable = get_executable(path.join(args.target_dir, 'chrome'))
     test_args += ['--browser=exact', '--browser-executable=' + browser_executable]
+    if args.backend == 'info':
+      index = index_match(test_args, lambda x: x.startswith('--expected-device-id'))
+      assert index > 0
+      gpu_info = get_gpu_info()
+      test_args[index+1] = gpu_info.device_id
   elif args.module == 'blink':
     test_args += ['--target=' + args.target]
     if args.backend.startswith('webgpu'):

@@ -179,10 +179,10 @@ def main():
     execute(cmd, dir=args.result_dir)
 
   # Parse result
-  gpu, driver = get_gpu_info()
+  gpu_info = get_gpu_info()
   header  = 'Location: %s\n' % args.result_dir
-  header += 'GPU: %s\n' % gpu if gpu else ''
-  header += 'Driver: %s\n' % driver if driver else ''
+  header += 'GPU: %s\n' % gpu_info.device
+  header += 'Driver: %s\n' % gpu_info.driver_version
 
   aquarium_report = execute_return([PARSE_RESULT, '--type', 'aquarium', '--dir', args.result_dir])
   if aquarium_report:
