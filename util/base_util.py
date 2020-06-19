@@ -22,10 +22,22 @@ SYSTEM_CONTROL_CLASS_KEY = 'SYSTEM\CurrentControlSet\Control\Class'
 PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z_\-\(\)]+ .+$'
 PATTERN_CHROME_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
 
-PATTERN_GL_RENDER  = r'^OpenGL renderer string: Mesa (.+) \(.+\)$'
-PATTERN_GL_VERSION = r'^OpenGL core profile version string: \d\.\d \(Core Profile\) Mesa ([\d\.]+).*$'
+PATTERN_VENDOR = r'^    Vendor: (.+) \(0x(\d+)\)$'
+PATTERN_DEVICE = r'^    Device: Mesa (.+) \(.+\) \(0x(\d+)\)$'
+PATTERN_GL_VERSION = r'^OpenGL core profile version string: [\d\.]+ \(Core Profile\) (.+) ([\d\.]+).*$'
+PATTERN_DEVICE_ID = r'^PCI\\VEN_(\w+)&DEV_(\w+)$'
 
 MATCHERS = {}
+
+class GpuInfo(object):
+  def __init__(self):
+    self.vendor = None
+    self.vendor_id = None
+    self.device = None
+    self.device_id = None
+    self.driver = None
+    self.driver_version = None
+
 
 def is_win():
   return sys.platform == 'win32'
@@ -207,24 +219,40 @@ def get_gpu_info_win():
                   not 'Control Panel' in driver_desc and
                   not 'Command Center' in driver_desc):
                 driver_version, _ = QueryValueEx(sub_key, 'DriverVersion')
-                return driver_desc, driver_version
+                device_id, _ = QueryValueEx(sub_key, 'MatchingDeviceId')
+                match = re_match(PATTERN_DEVICE_ID, device_id)
+
+                gpu_info = GpuInfo()
+                gpu_info.vendor = 'Intel'
+                gpu_info.vendor_id = match.group(1)
+                gpu_info.device = driver_desc
+                gpu_info.device_id = match.group(2).lower()
+                gpu_info.driver = 'Intel'
+                gpu_info.driver_version = driver_version
+                return gpu_info
           except WindowsError:
             pass
-  return None, None
+  return None
 
 def get_gpu_info_linux():
-  gpu, driver = None, None
+  gpu_info = GpuInfo()
   ret = execute_return(['glxinfo'])
   for line in ret.splitlines():
-    if not gpu:
-      match = re_match(PATTERN_GL_RENDER, line)
-      gpu = match.group(1) if match else None
-    if not driver:
+    if not gpu_info.vendor:
+      match = re_match(PATTERN_VENDOR, line)
+      if match:
+        gpu_info.vendor, gpu_info.vendor_id = match.groups()
+    if not gpu_info.device:
+      match = re_match(PATTERN_DEVICE, line)
+      if match:
+        gpu_info.device, gpu_info.device_id = match.groups()
+    if not gpu_info.driver:
       match = re_match(PATTERN_GL_VERSION, line)
-      driver = match.group(1) if match else None
-    if gpu and driver:
-      return gpu, driver
-  return gpu, driver
+      if match:
+        gpu_info.driver, gpu_info.driver_version = match.groups()
+    if gpu_info.vendor and gpu_info.device and gpu_info.driver:
+      return gpu_info
+  return None
 
 def get_gpu_info():
   if is_win():

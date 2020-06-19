@@ -44,7 +44,7 @@
     "webgl_v2": ["--webgl-conformance-version=2.0.1"],
     "fyi":       ["--show-stdout", "--passthrough", "-v", "--retry-only-retry-on-failure-tests"],
     "fyi_trace": ["trace_test"],
-    "fyi_info":  ["info_collection", "--expected-vendor-id", "8086", "--expected-device-id", "3e92"],
+    "fyi_info":  ["info_collection", "--expected-vendor-id", "8086", "--expected-device-id", "5912"],
     "blink":        ["--seed", "4", "--jobs=1", "--driver-logging", "--no-show-results", "--clobber-old-results", "--no-retry-failures"],
     "blink_linux":  ["--no-xvfb"],
     "blink_webgpu": ["--isolated-script-test-filter=wpt_internal/webgpu/*", "--ignore-default-expectations", "--additional-expectations="],
