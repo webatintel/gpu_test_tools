@@ -130,8 +130,8 @@ def execute_log(command, log_path, print_log=True, dir=None, env=None):
 def execute_progress(command, dir=None, env=None):
   is_ninja = command[0].find('ninja') >= 0
   start_time = get_currenttime()
-  last_progress, base_progress_time = 0, 0
-  no_newline = False
+  last_progress = 0
+  endline = True
 
   print('\n[%s] \'%s\' in \'%s\'' %
         (get_currenttime('%Y/%m/%d %H:%M:%S'), ' '.join(command),
@@ -144,17 +144,18 @@ def execute_progress(command, dir=None, env=None):
       match = re_match(PATTERN_NINJA_PROGRESS, line)
 
     if not match:
-      if no_newline:
-        no_newline = False
+      if not endline:
+        endline = True
         print()
       print(line, flush=True)
       continue
+
     progress = int(match.group(1)) * 100 // int(match.group(2))
     if progress == last_progress:
       continue
-
-    no_newline = True
     last_progress = progress
+    total_seconds = (get_currenttime() - start_time).total_seconds()
+
     line = '['
     for i in range(progress//2):
       line += '='
@@ -162,36 +163,12 @@ def execute_progress(command, dir=None, env=None):
     for i in range(progress//2, 50):
       line += ' '
     line += '] %d%%' % progress
-    print('\r' + line, end='')
-
-    total_seconds = (get_currenttime() - start_time).total_seconds()
-    print('    Total time: %d min' % (total_seconds // 60), end='')
+    print('\r%s    Total time: %d min' % (line, total_seconds // 60), end='', flush=True)
     if progress == 100:
-      print('                              ', flush=True)
-      continue
-
-    if progress <= 3:
-      pass
-    elif progress <= 10:
-      base_progress_time = total_seconds / progress * 8 // 5
-    elif progress <= 20:
-      base_progress_time = total_seconds / progress * 6 // 5
-    elif progress <= 50:
-      base_progress_time = total_seconds / progress
-
-    if not base_progress_time:
-      print('    Time remaining: - min', end='', flush=True)
+      endline = True
+      print()
     else:
-      time_remaining = 0
-      if progress <= 50:
-        time_remaining += base_progress_time * 50 - total_seconds
-      if progress <= 60:
-        time_remaining += base_progress_time * (60 - max(50, progress))  * 15 // 6
-      if progress <= 80:
-        time_remaining += base_progress_time * (80 - max(60, progress))  * 25 // 6
-      if progress <= 100:
-        time_remaining += base_progress_time * (100 - max(80, progress)) * 35 // 6
-      print('    Time remaining: %d min  ' % (time_remaining // 60), end='', flush=True)
+      endline = False
 
   retcode = process.wait()
   if retcode:
