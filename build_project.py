@@ -73,6 +73,15 @@ CHROME_SRC_RESOURCE = [
   path.join('third_party', 'pywebsocket3', 'src', 'mod_pywebsocket'),
 ]
 
+CHROME_REMOVABLE = [
+  'cdb',
+  'gen',
+  'initialexe',
+  'test_fonts',
+  '*.pdb',
+  '*.info',
+]
+
 CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
 PATTERN_COMMIT = r'^commit (\w+)$'
@@ -234,6 +243,8 @@ def pack_chrome(src_dir, target_dir, dest_dir):
   copy_library(src_target, dest_target, CHROME_LIBRARY)
   copy_resource(src_target, dest_target, CHROME_RESOURCE)
   copy_resource(src_dir, dest_dir, CHROME_SRC_RESOURCE)
+  for item in CHROME_REMOVABLE:
+    remove(path.join(dest_target, item))
 
 
 def update_aquarium_deps(src_dir):

@@ -1,4 +1,5 @@
 import email.utils
+import glob
 import json
 import os
 import shutil
@@ -32,13 +33,18 @@ def copy(src, dest):
   else:
     assert False
 
-def remove(item):
-  if path.isfile(item):
-    os.remove(item)
-  elif path.islink(item):
-    os.unlink(item)
-  elif path.isdir(item):
-    shutil.rmtree(item)
+def remove(pathname):
+  if pathname.find('*') >= 0:
+    for item in glob.glob(pathname):
+      remove(item)
+  elif path.isfile(pathname):
+    os.remove(pathname)
+  elif path.islink(pathname):
+    os.unlink(pathname)
+  elif path.isdir(pathname):
+    shutil.rmtree(pathname)
+  else:
+    assert False
 
 def zip(dest_file, src_dir):
   with zipfile.ZipFile(dest_file, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zip_file:
@@ -122,9 +128,9 @@ def copy_executable(src_dir, dest_dir, files):
     if sys.platform == 'win32':
       file_name += '.exe'
       copy(path.join(src_dir, file_name), dest_dir)
-      file_name += '.pdb'
-      if path.exists(file_name):
-        copy(path.join(src_dir, file_name), dest_dir)
+      # file_name += '.pdb'
+      # if path.exists(file_name):
+      #   copy(path.join(src_dir, file_name), dest_dir)
     else:
       copy(path.join(src_dir, file_name), dest_dir)
       chmod(path.join(dest_dir, file_name), 755)
@@ -134,9 +140,9 @@ def copy_library(src_dir, dest_dir, files):
     if sys.platform == 'win32':
       file_name += '.dll'
       copy(path.join(src_dir, file_name), dest_dir)
-      file_name += '.pdb'
-      if path.exists(file_name):
-        copy(path.join(src_dir, file_name), dest_dir)
+      # file_name += '.pdb'
+      # if path.exists(file_name):
+      #   copy(path.join(src_dir, file_name), dest_dir)
     else:
       file_name += '.so'
       file_name = ('lib' if not file_name.startswith('lib') else '') + file_name
