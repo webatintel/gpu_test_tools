@@ -273,7 +273,7 @@ def main():
   args = parse_arguments()
 
   def find_result_file(module):
-    result_ext = 'json' if module in ['webgl', 'fyi', 'blink'] else 'log'
+    result_ext = 'json' if module in ['content', 'blink'] else 'log'
     for file_path in list_file(args.result_dir):
       file_name = path.basename(file_path)
       if (file_name.endswith(result_ext) and 
@@ -299,7 +299,7 @@ def main():
     merged_result = {}
     for module in args.result_type:
       for result_file in find_result_file(module):
-        if module in ['webgl', 'fyi', 'blink']:
+        if module in ['content', 'blink']:
           test_suite = parse_json_result_file(result_file)
         elif module in ['gpu', 'angle', 'dawn']:
           test_suite = parse_unittest_result_file(result_file) or parse_gtest_result_file(result_file)

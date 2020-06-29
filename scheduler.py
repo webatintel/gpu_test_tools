@@ -42,9 +42,7 @@ def main():
     test_time = datetime.datetime(test_date.year, test_date.month, test_date.day, 20, 0)
     print('\nTest time: ' + test_time.strftime('%Y/%m/%d %H:%M'))
 
-    job_type = ['regular']
-    job_type += ['extra'] if test_time.isoweekday() == 6 else []
-    job_type += ['aquarium'] if test_time.isoweekday() == 7 else []
+    job_type = ['chrome', 'aquarium']
     scheduler.enterabs(time.mktime(test_time.timetuple()), 1, run_tryjob, (job_type,))
     scheduler.run()
 
