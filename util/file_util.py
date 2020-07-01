@@ -37,10 +37,10 @@ def remove(pathname):
   if pathname.find('*') >= 0:
     for item in glob.glob(pathname):
       remove(item)
+  elif not path.exists(pathname):
+    pass
   elif path.isfile(pathname):
     os.remove(pathname)
-  elif path.islink(pathname):
-    os.unlink(pathname)
   elif path.isdir(pathname):
     shutil.rmtree(pathname)
   else:
