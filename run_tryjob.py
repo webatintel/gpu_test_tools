@@ -90,8 +90,8 @@ def parse_arguments():
     raise Exception('Please specify --chrome-dir')
 
   args.receiver_admin    = config['email']['receiver']['admin']
-  args.receiver_tryjob   = config['email']['receiver']['tryjob']
   args.receiver_aquarium = config['email']['receiver']['aquarium']
+  args.receiver_report   = config['email']['receiver']['report']
   args.average_fps = config['aquarium']['average_fps'][get_platform()]
 
   if args.result_dir:
@@ -190,7 +190,7 @@ def main():
     aquarium_report = '%s\n\n%s\n%s' % (title, header, aquarium_report)
     write_file(path.join(args.result_dir, AQUARIUM_REPORT), aquarium_report)
     if args.email:
-      send_email(args.receiver_aquarium, title, aquarium_report)
+      send_email(args.receiver_report, title, aquarium_report)
     print('\n--------------------------------------------------\n' + aquarium_report)
 
   tryjob_report = execute_return([PARSE_RESULT, '--dir', args.result_dir])
@@ -202,7 +202,7 @@ def main():
     tryjob_report = '%s\n\n%s\n%s' % (title, header, tryjob_report)
     write_file(path.join(args.result_dir, TRYJOB_REPORT), tryjob_report)
     if args.email:
-      send_email(args.receiver_tryjob, title, tryjob_report)
+      send_email(args.receiver_report, title, tryjob_report)
     print('\n--------------------------------------------------\n' + tryjob_report)
 
   print('\n--------------------------------------------------\n')
