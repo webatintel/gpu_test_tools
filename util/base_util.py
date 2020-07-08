@@ -113,9 +113,9 @@ def execute_log(command, log_path, print_log=True, dir=None, env=None):
          path.abspath(dir) if dir else os.getcwd()))
   process = subprocess.Popen(command, cwd=dir, env=env, shell=is_win(),
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  with open(log_path, 'w') as log_file:
+  with open(log_path, 'w', encoding='utf-8') as log_file:
     for line in iter(process.stdout.readline, b''):
-      line = line.decode().strip()
+      line = line.decode('utf-8', 'ignore').strip()
       log_file.write(line + '\n')
       log_file.flush()
       os.fsync(log_file.fileno())
