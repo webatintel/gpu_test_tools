@@ -9,24 +9,20 @@ CHROME_BUILD_TARGET = [
   'chrome',
   'content_shell',
   'telemetry_gpu_integration_test',
+  'imagediff',
   'gpu_unittests',
   'gl_tests',
   'vulkan_tests',
-  'imagediff',
-  'angle_end2end_tests',
-  'angle_perftests',
-  'dawn_end2end_tests',
-  'dawn_perf_tests',
+  'angle_tests',
+  'dawn_tests',
 ]
 
 ANGLE_BUILD_TARGET = [
-  'angle_end2end_tests',
-  'angle_perftests',
+  'angle_tests',
 ]
 
 DAWN_BUILD_TARGET = [
-  'dawn_end2end_tests',
-  'dawn_perf_tests',
+  'dawn_tests',
 ]
 
 AQUARIUM_BUILD_TARGET = [
@@ -38,13 +34,15 @@ CHROME_EXECUTABLE = [
   'content_shell',
   'crashpad_database_util',
   'crashpad_handler',
-  'gl_tests',
-  'gpu_unittests',
-  'image_diff',
   'trace_processor_shell',
+  'image_diff',
+  'gpu_unittests',
+  'gl_tests',
   'vulkan_tests',
+  'angle_unittests',
   'angle_end2end_tests',
   'angle_perftests',
+  'dawn_unittests',
   'dawn_end2end_tests',
   'dawn_perf_tests',
 ]
@@ -160,6 +158,7 @@ def build_chrome(args):
   build_args['use_dawn'] = 'true'
   build_args['enable_nacl'] = 'false'
   build_args['blink_symbol_level'] = '0'
+  build_args['internal_gles2_conform_tests'] = 'true'
   if args.build_type == 'debug':
     build_args['is_debug'] = 'true'
     build_args['symbol_level'] = '2'
