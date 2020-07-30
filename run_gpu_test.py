@@ -127,6 +127,9 @@ def execute_shard(args, cmd):
 
 
 def main():
+  def get_executable(file_path):
+    return file_path + ('.exe' if sys.platform == 'win32' else '')
+
   args, extra_args = parse_arguments()
 
   # Generate command

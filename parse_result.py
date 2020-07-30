@@ -5,10 +5,11 @@ import argparse
 from util.base_util import *
 from util.file_util import *
 
-PATTERN_UNITTEST_RESULT_FAIL    = r'^\d+ test(s?) failed:$'
-PATTERN_UNITTEST_RESULT_CRASH   = r'^\d+ test(s?) crashed:$'
-PATTERN_UNITTEST_RESULT_TIMEOUT = r'^\d+ test(s?) timed out:$'
-PATTERN_UNITTEST_RESULT_SKIP    = r'^\d+ test(s?) not run:$'
+PATTERN_UNITTEST_RESULT_FAIL          = r'^\d+ test(s?) failed:$'
+PATTERN_UNITTEST_RESULT_FAIL_EXPECTED = r'^\d+ test(s?) failed as expected:$'
+PATTERN_UNITTEST_RESULT_CRASH         = r'^\d+ test(s?) crashed:$'
+PATTERN_UNITTEST_RESULT_TIMEOUT       = r'^\d+ test(s?) timed out:$'
+PATTERN_UNITTEST_RESULT_SKIP          = r'^\d+ test(s?) not run:$'
 PATTERN_UNITTEST_CASE  = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_UNITTEST_ERROR = r'^(.+) \(.+:\d+\)$'
 
@@ -173,6 +174,7 @@ def parse_unittest_result_file(result_file):
           result.result = False
           result.is_timeout = error_result == 'timeout'
           result.is_crash = error_result == 'crash'
+          result.is_expected = error_result == 'fail_expected'
         test_suite.RemovePass(result.name)
         test_suite.AddResult(result)
         continue
@@ -187,6 +189,8 @@ def parse_unittest_result_file(result_file):
 
     if re_match(PATTERN_UNITTEST_RESULT_FAIL, line):
       error_result = 'fail'
+    elif re_match(PATTERN_UNITTEST_RESULT_FAIL_EXPECTED, line):
+      error_result = 'fail_expected'
     elif re_match(PATTERN_UNITTEST_RESULT_CRASH, line):
       error_result = 'crash'
     elif re_match(PATTERN_UNITTEST_RESULT_TIMEOUT, line):

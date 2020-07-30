@@ -10,7 +10,6 @@ CHROME_BUILD_TARGET = [
   'content_shell',
   'telemetry_gpu_integration_test',
   'imagediff',
-  'gpu_unittests',
   'gl_tests',
   'vulkan_tests',
   'angle_tests',
@@ -29,58 +28,17 @@ AQUARIUM_BUILD_TARGET = [
   'aquarium',
 ]
 
-CHROME_EXECUTABLE = [
-  'chrome',
-  'content_shell',
-  'crashpad_database_util',
-  'crashpad_handler',
-  'trace_processor_shell',
-  'image_diff',
-  'gpu_unittests',
-  'gl_tests',
-  'vulkan_tests',
-  'angle_unittests',
-  'angle_end2end_tests',
-  'angle_perftests',
-  'dawn_unittests',
-  'dawn_end2end_tests',
-  'dawn_perf_tests',
+CHROME_DEPS_TARGET = [
+  '//chrome',
+  '//chrome/test:telemetry_gpu_integration_test',
+  '//gpu:gl_tests',
+  '//gpu/vulkan:vulkan_tests',
+  '//third_party/angle/src/tests:angle_end2end_tests',
+  '//third_party/angle/src/tests:angle_perftests',
+  '//third_party/dawn/src/tests:dawn_end2end_tests',
+  '//third_party/dawn/src/tests:dawn_perf_tests',
+  '//:blink_web_tests',
 ]
-
-CHROME_EXECUTABLE_BREAKPAD = [
-  'dump_syms',
-  'minidump_dump',
-  'minidump_stackwalk',
-]
-
-CHROME_LIBRARY = [
-  'angle_util',
-  'blink_deprecated_test_plugin',
-  'blink_test_plugin',
-]
-
-CHROME_RESOURCE = [
-  'args.gn',
-  'content_shell.pak',
-  'test_fonts',
-]
-
-CHROME_SRC_RESOURCE = [
-  path.join('third_party', 'blink', 'tools'),
-  path.join('third_party', 'blink', 'web_tests'),
-  path.join('third_party', 'pywebsocket3', 'src', 'mod_pywebsocket'),
-]
-
-CHROME_REMOVABLE = [
-  'cdb',
-  'gen',
-  'initialexe',
-  'test_fonts',
-  '*.pdb',
-  '*.info',
-]
-
-CHROME_PACK_SCRIPT = path.join('tools', 'mb', 'mb.py')
 
 PATTERN_COMMIT = r'^commit (\w+)$'
 PATTERN_DAWN_REVISION = r'  \'dawn_revision\': \'\w+\''
@@ -228,22 +186,22 @@ def build_mesa(args):
 
 
 def pack_chrome(src_dir, target_dir, dest_dir):
-  zip_file = path.join(src_dir, random_string(8) + '.zip')
-  execute(['vpython', CHROME_PACK_SCRIPT, 'zip', target_dir,
-           'telemetry_gpu_integration_test', zip_file], dir=src_dir)
-  unzip(zip_file, dest_dir)
-  remove(zip_file)
+  print()
+  for target in CHROME_DEPS_TARGET:
+    print('Packaging ' + target)
+    ret = execute_return(['gn', 'desc', target_dir, target, 'runtime_deps'], dir=src_dir)
+    for dep in ret.splitlines():
+      src_dep = path.abspath(path.join(src_dir, target_dir, dep))
+      dest_dep = path.abspath(path.join(dest_dir, target_dir, dep))
+      if path.exists(src_dep) and not path.exists(dest_dep):
+        dest_dep_dir = path.dirname(dest_dep)
+        mkdir(dest_dep_dir)
+        copy(src_dep, dest_dep_dir)
 
-  src_target = path.join(src_dir, target_dir)
-  dest_target = path.join(dest_dir, target_dir)
-  copy_executable(src_target, dest_target, CHROME_EXECUTABLE)
-  if is_linux():
-    copy_executable(src_target, dest_target, CHROME_EXECUTABLE_BREAKPAD)
-  copy_library(src_target, dest_target, CHROME_LIBRARY)
-  copy_resource(src_target, dest_target, CHROME_RESOURCE)
-  copy_resource(src_dir, dest_dir, CHROME_SRC_RESOURCE)
-  for item in CHROME_REMOVABLE:
-    remove(path.join(dest_target, item))
+  if is_win() and not 'Debug' in target_dir:
+    for file_path in list_file(path.join(dest_dir, target_dir)):
+      if file_path.endswith('.pdb'):
+        remove(file_path)
 
 
 def update_aquarium_deps(src_dir):
