@@ -31,6 +31,7 @@ def copy(src, dest):
     dest = path.join(dest, path.basename(src)) if path.exists(dest) else dest
     shutil.copytree(src, dest)
   else:
+    print(src + ' not exists')
     assert False
 
 def remove(pathname):
@@ -118,38 +119,3 @@ def send_email(receiver, subject, body='', attach=[]):
     smtp.quit()
   except Exception as e:
     print(e)
-
-
-def get_executable(file_path):
-  return file_path + ('.exe' if sys.platform == 'win32' else '')
-
-def copy_executable(src_dir, dest_dir, files):
-  for file_name in files:
-    if sys.platform == 'win32':
-      file_name += '.exe'
-      copy(path.join(src_dir, file_name), dest_dir)
-      # file_name += '.pdb'
-      # if path.exists(file_name):
-      #   copy(path.join(src_dir, file_name), dest_dir)
-    else:
-      copy(path.join(src_dir, file_name), dest_dir)
-      chmod(path.join(dest_dir, file_name), 755)
-
-def copy_library(src_dir, dest_dir, files):
-  for file_name in files:
-    if sys.platform == 'win32':
-      file_name += '.dll'
-      copy(path.join(src_dir, file_name), dest_dir)
-      # file_name += '.pdb'
-      # if path.exists(file_name):
-      #   copy(path.join(src_dir, file_name), dest_dir)
-    else:
-      file_name += '.so'
-      file_name = ('lib' if not file_name.startswith('lib') else '') + file_name
-      copy(path.join(src_dir, file_name), dest_dir)
-
-def copy_resource(src_dir, dest_dir, items):
-  for item in items:
-    target_dir = path.join(dest_dir, path.dirname(item))
-    mkdir(target_dir)
-    copy(path.join(src_dir, item), target_dir)
