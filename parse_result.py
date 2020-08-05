@@ -14,7 +14,7 @@ PATTERN_UNITTEST_CASE  = r'^\[\d+/\d+\] (.+) \(\d+ ms\)$'
 PATTERN_UNITTEST_ERROR = r'^(.+) \(.+:\d+\)$'
 
 PATTERN_GTEST_RESULT_OK   = r'^\[\s+OK\s+\] ([\w\./<>]+) \(\d+ ms\)$'
-PATTERN_GTEST_RESULT_SKIP = r'^\[\s+skip\s+\] ([\w\./<>]+) \(\d+ ms\)$'
+PATTERN_GTEST_RESULT_SKIP = r'^\[\s+SKIPPED\s+\] ([\w\./<>]+) \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_FAIL = r'^\[\s+FAILED\s+\] ([\w\./<>]+), .+ \(\d+ ms\)$'
 PATTERN_GTEST_RESULT_OVER = r'^\[=+\] \d+ tests from \d+ test suites ran\. \(\d+ ms total\)$'
 
@@ -305,8 +305,10 @@ def main():
       for result_file in find_result_file(module):
         if module in ['content', 'blink']:
           test_suite = parse_json_result_file(result_file)
-        elif module in ['gpu', 'angle', 'dawn']:
-          test_suite = parse_unittest_result_file(result_file) or parse_gtest_result_file(result_file)
+        elif module in ['gpu', 'angle']:
+          test_suite = parse_unittest_result_file(result_file)
+        elif module in ['dawn']:
+          test_suite = parse_gtest_result_file(result_file)
         if test_suite:
           name, ext = path.splitext(test_suite.name)
           while ext:
