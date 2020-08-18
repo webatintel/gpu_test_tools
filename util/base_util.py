@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from collections import defaultdict
+from pathlib import Path
 from os import path
 from subprocess import CalledProcessError
 
@@ -61,6 +62,9 @@ def get_hostname():
 
 def get_env():
   return os.environ.copy()
+
+def get_home_dir():
+  return Path.home()
 
 def re_match(pattern, string):
   global MATCHERS

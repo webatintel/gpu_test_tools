@@ -86,6 +86,8 @@ def parse_arguments():
   args.test_args    = config['test_args']
   args.browser_args = config['browser_args']
   args.mesa_path    = config['mesa']['path']
+  if not args.mesa_path.startswith('/'):
+    args.mesa_path = path.join(get_home_dir(), args.mesa_path)
 
   if args.filter:
     for i in range(len(args.filter)):

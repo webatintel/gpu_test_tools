@@ -110,6 +110,6 @@
     }
   },
   "mesa": {
-    "path": "~/workspace/env/mesa"
+    "path": "workspace/env/mesa"
   }
 }
