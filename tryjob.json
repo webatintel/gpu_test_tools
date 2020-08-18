@@ -1,11 +1,11 @@
 {
   "tryjob": [
-    ["webgl_conformance_tests",                        ["content", "webgl_d3d11"],  ["win"         ], ["chrome", "content", "webgl",  "d3d11"]],
+    ["webgl_conformance_d3d11_passthrough_tests",      ["content", "webgl_d3d11"],  ["win"         ], ["chrome", "content", "webgl",  "d3d11"]],
     ["webgl_conformance_d3d9_passthrough_tests",       ["content", "webgl_d3d9"],   ["win"         ], ["chrome", "content", "webgl",  "d3d9"]],
     ["webgl_conformance_gl_passthrough_tests",         ["content", "webgl_gl"],     ["win", "linux"], ["chrome", "content", "webgl",  "gl"]],
     ["webgl_conformance_vulkan_passthrough_tests",     ["content", "webgl_vulkan"], ["win", "linux"], ["chrome", "content", "webgl",  "vulkan"]],
     ["webgl_conformance_validating_tests",             ["content", "webgl_valid"],  [       "linux"], ["chrome", "content", "webgl",  "validating"]],
-    ["webgl2_conformance_tests",                       ["content", "webgl2_d3d11"], ["win"         ], ["chrome", "content", "webgl2", "d3d11"]],
+    ["webgl2_conformance_d3d11_passthrough_tests",     ["content", "webgl2_d3d11"], ["win"         ], ["chrome", "content", "webgl2", "d3d11"]],
     ["webgl2_conformance_gl_passthrough_tests",        ["content", "webgl2_gl"],    ["win", "linux"], ["chrome", "content", "webgl2", "gl"]],
     ["webgl2_conformance_validating_tests",            ["content", "webgl2_valid"], [       "linux"], ["chrome", "content", "webgl2", "validating"]],
     ["trace_test",                                     ["content", "trace"],        ["win", "linux"], ["chrome", "content"]],
@@ -72,7 +72,9 @@
     "content_webgl2_valid": ["--use-cmd-decoder=validating"],
     "content_webgl_gl":     ["--use-cmd-decoder=passthrough", "--use-angle=gl", "--use-gl=angle"],
     "content_webgl2_gl":    ["--use-cmd-decoder=passthrough", "--use-angle=gl", "--use-gl=angle"],
-    "content_webgl_d3d9":   ["--use-cmd-decoder=passthrough", "--use-angle=d3d9"],
+    "content_webgl_d3d9":   ["--use-cmd-decoder=passthrough", "--use-angle=d3d9", "--use-gl=angle"],
+    "content_webgl_d3d11":  ["--use-cmd-decoder=passthrough", "--use-angle=d3d11", "--use-gl=angle"],
+    "content_webgl2_d3d11": ["--use-cmd-decoder=passthrough", "--use-angle=d3d11", "--use-gl=angle"],
     "content_webgl_vulkan": ["--use-cmd-decoder=passthrough", "--use-angle=vulkan"],
     "blink_webgpu":       ["--enable-unsafe-webgpu", "--use-gpu-in-tests"],
     "blink_webgpu_win":   ["--disable-gpu-sandbox"],
@@ -106,5 +108,8 @@
         "jiajie.hu@intel.com"
       ]
     }
+  },
+  "mesa": {
+    "path": "~/workspace/env/mesa"
   }
 }
