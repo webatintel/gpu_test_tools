@@ -85,6 +85,7 @@ def parse_arguments():
   args.test_command = config['test_command']
   args.test_args    = config['test_args']
   args.browser_args = config['browser_args']
+  args.mesa_path    = config['mesa']['path']
 
   if args.filter:
     for i in range(len(args.filter)):
@@ -103,6 +104,10 @@ def execute_shard(args, cmd):
   if is_win():
     for var in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY']:
       env.pop(var, None)
+  elif is_linux():
+    env['LD_LIBRARY_PATH']    = args.mesa_path + '/lib/x86_64-linux-gnu'
+    env['LIBGL_DRIVERS_PATH'] = args.mesa_path + '/lib/x86_64-linux-gnu/dri'
+    env['VK_ICD_FILENAMES']   = args.mesa_path + '/share/vulkan/icd.d/intel_icd.x86_64.json'
 
   log_name, log_ext = path.splitext(args.log_file)
   result_name, result_ext = path.splitext(args.result_file)
