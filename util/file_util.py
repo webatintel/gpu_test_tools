@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import smtplib
+import stat
 import sys
 import zipfile
 
@@ -35,6 +36,13 @@ def copy(src, dest):
     assert False
 
 def remove(pathname):
+  def onerror(func, path, exc):
+    if not os.access(path, os.W_OK):
+      os.chmod(path, stat.S_IWUSR)
+      func(path)
+    else:
+      raise
+
   if pathname.find('*') >= 0:
     for item in glob.glob(pathname):
       remove(item)
@@ -43,7 +51,7 @@ def remove(pathname):
   elif path.isfile(pathname):
     os.remove(pathname)
   elif path.isdir(pathname):
-    shutil.rmtree(pathname)
+    shutil.rmtree(pathname, onerror=onerror)
   else:
     assert False
 
