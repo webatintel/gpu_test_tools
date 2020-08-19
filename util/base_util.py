@@ -19,9 +19,9 @@ except ImportError:
   pass
 
 MESA_PATH = 'workspace/env/mesa'
-MESA_LIB_PATH    = '/lib/x86_64-linux-gnu'
-MESA_DRIVER_PATH = '/lib/x86_64-linux-gnu/dri'
-MESA_VULKAN_PATH = '/share/vulkan/icd.d/intel_icd.x86_64.json'
+MESA_LIB_PATH    = 'lib/x86_64-linux-gnu'
+MESA_DRIVER_PATH = 'lib/x86_64-linux-gnu/dri'
+MESA_VULKAN_PATH = 'share/vulkan/icd.d/intel_icd.x86_64.json'
 
 SYSTEM_CONTROL_CLASS_KEY = 'SYSTEM\CurrentControlSet\Control\Class'
 
