@@ -29,7 +29,7 @@ PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z_\-\(\)]+ .+$'
 PATTERN_CHROME_REVISION = r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$'
 
 PATTERN_VENDOR = r'^    Vendor: (.+) \(0x(\w+)\)$'
-PATTERN_DEVICE = r'^    Device: Mesa (.+) \(.+\) \(0x(\w+)\)$'
+PATTERN_DEVICE = r'^    Device: Mesa (.+) \(.+\)\s+\(0x(\w+)\)$'
 PATTERN_GL_VERSION = r'^OpenGL core profile version string: [\d\.]+ \(Core Profile\) (.+) ([\d\.]+).*$'
 PATTERN_DEVICE_ID = r'^PCI\\VEN_(\w+)&DEV_(\w+)$'
 
