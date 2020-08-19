@@ -179,6 +179,19 @@ def execute_progress(command, dir=None, env=None):
     raise CalledProcessError(retcode, command)
 
 
+def add_mesa_env(env):
+  assert is_linux()
+  config = load_tryjob_config()
+  mesa_path = config['mesa']['path']
+  if not mesa_path.startswith('/'):
+    mesa_path = path.join(get_home_dir(), mesa_path)
+
+  env['LD_LIBRARY_PATH']    = mesa_path + '/lib/x86_64-linux-gnu'
+  env['LIBGL_DRIVERS_PATH'] = mesa_path + '/lib/x86_64-linux-gnu/dri'
+  env['VK_ICD_FILENAMES']   = mesa_path + '/share/vulkan/icd.d/intel_icd.x86_64.json'
+  return env
+
+
 def get_chrome_revision(src_dir, back_level=0):
   ret = execute_return(['git', 'log', '-1', 'HEAD~%d' % back_level], dir=src_dir)
   for line in reversed(ret.split('\n')):
@@ -186,6 +199,7 @@ def get_chrome_revision(src_dir, back_level=0):
     if match:
       return match.group(1)
   return ''
+
 
 def get_gpu_info_win():
   with OpenKey(HKEY_LOCAL_MACHINE, SYSTEM_CONTROL_CLASS_KEY) as root_key:
@@ -215,9 +229,10 @@ def get_gpu_info_win():
             pass
   return None
 
+
 def get_gpu_info_linux():
   gpu_info = GpuInfo()
-  ret = execute_return(['glxinfo'])
+  ret = execute_return(['glxinfo'], env=add_mesa_env(get_env()))
   for line in ret.splitlines():
     if not gpu_info.vendor:
       match = re_match(PATTERN_VENDOR, line)
@@ -234,6 +249,7 @@ def get_gpu_info_linux():
     if gpu_info.vendor and gpu_info.device and gpu_info.driver:
       return gpu_info
   return None
+
 
 def get_gpu_info():
   if is_win():
