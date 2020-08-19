@@ -108,8 +108,5 @@
         "jiajie.hu@intel.com"
       ]
     }
-  },
-  "mesa": {
-    "path": "workspace/env/mesa"
   }
 }
