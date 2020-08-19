@@ -18,6 +18,11 @@ try:
 except ImportError:
   pass
 
+MESA_PATH = 'workspace/env/mesa'
+MESA_LIB_PATH    = '/lib/x86_64-linux-gnu'
+MESA_DRIVER_PATH = '/lib/x86_64-linux-gnu/dri'
+MESA_VULKAN_PATH = '/share/vulkan/icd.d/intel_icd.x86_64.json'
+
 SYSTEM_CONTROL_CLASS_KEY = 'SYSTEM\CurrentControlSet\Control\Class'
 
 PATTERN_NINJA_PROGRESS = r'^\[(\d+)/(\d+)\] [A-Z_\-\(\)]+ .+$'
@@ -181,14 +186,13 @@ def execute_progress(command, dir=None, env=None):
 
 def add_mesa_env(env):
   assert is_linux()
-  config = load_tryjob_config()
-  mesa_path = config['mesa']['path']
+  mesa_path = MESA_PATH
   if not mesa_path.startswith('/'):
     mesa_path = path.join(get_home_dir(), mesa_path)
 
-  env['LD_LIBRARY_PATH']    = mesa_path + '/lib/x86_64-linux-gnu'
-  env['LIBGL_DRIVERS_PATH'] = mesa_path + '/lib/x86_64-linux-gnu/dri'
-  env['VK_ICD_FILENAMES']   = mesa_path + '/share/vulkan/icd.d/intel_icd.x86_64.json'
+  env['LD_LIBRARY_PATH']    = path.join(mesa_path, MESA_LIB_PATH)
+  env['LIBGL_DRIVERS_PATH'] = path.join(mesa_path, MESA_DRIVER_PATH)
+  env['VK_ICD_FILENAMES']   = path.join(mesa_path, MESA_VULKAN_PATH)
   return env
 
 
