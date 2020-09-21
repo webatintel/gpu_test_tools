@@ -90,8 +90,9 @@ def parse_arguments():
     raise Exception('Please specify --chrome-dir')
 
   args.receiver_admin    = config['email']['receiver']['admin']
-  args.receiver_aquarium = config['email']['receiver']['aquarium']
   args.receiver_report   = config['email']['receiver']['report']
+  args.receiver_aquarium = config['email']['receiver']['aquarium']
+  args.receiver_aquarium.extend(args.receiver_admin)
   args.average_fps = config['aquarium']['average_fps'][get_platform()]
 
   if args.result_dir:

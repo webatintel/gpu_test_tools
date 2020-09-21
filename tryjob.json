@@ -98,13 +98,13 @@
     "sender": "gpu_test@wp-40.sh.intel.com",
     "receiver": {
       "admin": [
-        "lin.sun@intel.com"
+        "lin.sun@intel.com",
+        "yang.gu@intel.com"
       ],
       "report": [
         "webgraphics@intel.com"
       ],
       "aquarium": [
-        "lin.sun@intel.com",
         "jiajie.hu@intel.com"
       ]
     }
