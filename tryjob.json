@@ -59,6 +59,7 @@
     "dawn_end2end_wire":   ["--use-wire"],
     "dawn_end2end_valid":  ["--enable-backend-validation"],
     "dawn_end2end_skip":   ["--skip-validation"],
+    "dawn_end2end_linux":  ["--no-xvfb"],
     "dawn_perf":           ["--verbose", "-v", "--test-launcher-print-test-stdio=always", "--test-launcher-jobs=1", "--test-launcher-retry-limit=0", "--override-steps=1"],
     "aquarium":             ["--test-time", "30", "--num-fish", "30000", "--enable-msaa", "--turn-off-vsync", "--integrated-gpu", "--window-size=1920,1080", "--print-log"],
     "aquarium_dawn_vulkan": ["--backend", "dawn_vulkan"],
